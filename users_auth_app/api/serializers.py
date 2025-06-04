@@ -25,3 +25,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
         user = CustomUser.objects.create_user(**validated_data)
         Token.objects.create(user=user)
         return user
+
+
+class LoginSerializer(serializers.Serializer):
+    """Validate login credentials (email and password)."""
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
