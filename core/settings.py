@@ -30,17 +30,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv(
     'SECRET_KEY', default='django-insecure-@#x5h3zj!g+8g1v@2^b6^9$8&f1r7g$@t3v!p4#=g0r5qzj4m3')
 
-
+# Zwei Zeilen hinzufügen
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", default="localhost").split(",")
-
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "CSRF_TRUSTED_ORIGINS", default="http://localhost:4200").split(",")
 
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 ALLOWED_HOSTS = []
+
+
+AUTH_USER_MODEL = "users_auth_app.CustomUser"
 
 
 # Application definition
@@ -55,7 +56,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_rq',
     'rest_framework',
-    'core'
+    'rest_framework.authtoken',
+    'core',
+    'users_auth_app',
 ]
 
 MIDDLEWARE = [
@@ -171,3 +174,13 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.TokenAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
