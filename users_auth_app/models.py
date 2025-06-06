@@ -2,6 +2,9 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import BaseUserManager
 
+import uuid
+
+
 # Create your models here.
 
 
@@ -31,6 +34,9 @@ class CustomUser(AbstractUser):
     """Custom user extending AbstractUser: username optional, unique email used for login."""
     username = models.CharField(max_length=150, blank=True, null=True)
     email = models.EmailField(unique=True)
+    is_verified = models.BooleanField(default=False)
+    verification_token = models.UUIDField(
+        default=uuid.uuid4, null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

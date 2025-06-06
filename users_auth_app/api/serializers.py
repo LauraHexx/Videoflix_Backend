@@ -27,6 +27,11 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
+class UserVerifiedSerializer(serializers.Serializer):
+    """Serializer for verifying if a user with given email is verified."""
+    email = serializers.EmailField()
+
+
 class LoginSerializer(serializers.Serializer):
     """Validate login credentials (email and password)."""
     email = serializers.EmailField()
