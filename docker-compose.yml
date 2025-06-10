@@ -1,8 +1,9 @@
 services:
-
   db:
     image: postgres:latest
     container_name: videoflix_database
+    ports:
+      - '5432:5432'
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -28,13 +29,10 @@ services:
       - videoflix_media:/app/media
       - videoflix_static:/app/static
     ports:
-      - "8000:8000"
+      - '8000:8000'
     depends_on:
       - db
       - redis
-
-
-
 
 volumes:
   postgres_data:
