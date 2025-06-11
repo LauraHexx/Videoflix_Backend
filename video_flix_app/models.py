@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class Video(models.Model):
@@ -12,3 +13,19 @@ class Video(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class UserWatchHistory(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE)
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    progress = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.user.username} watched {self.video.title} {self.progress}%"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "video"], name="unique_user_video")
+        ]
