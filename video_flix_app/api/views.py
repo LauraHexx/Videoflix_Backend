@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from ..models import Video, UserWatchHistory
 from .serializers import VideoSerializer, UserWatchHistorySerializer
 
@@ -7,10 +7,10 @@ from .serializers import VideoSerializer, UserWatchHistorySerializer
 class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
+        return self.queryset
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -25,7 +25,7 @@ class VideoViewSet(viewsets.ModelViewSet):
 class UserWatchHistoryViewSet(viewsets.ModelViewSet):
     queryset = UserWatchHistory.objects.all()
     serializer_class = UserWatchHistorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)

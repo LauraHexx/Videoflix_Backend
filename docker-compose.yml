@@ -23,6 +23,8 @@ services:
       dockerfile: backend.Dockerfile
     env_file: .env
     container_name: videoflix_backend
+    environment:
+      - DJANGO_ENV=development
 
     volumes:
       - .:/app

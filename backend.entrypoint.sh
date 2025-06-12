@@ -38,6 +38,17 @@ else:
     print(f"Superuser '{username}' already exists.")
 EOF
 
+
 python manage.py rqworker default &
 
-exec gunicorn core.wsgi:application --bind 0.0.0.0:8000
+# depending on the environment, start the server in development or production mode
+if [ "$DJANGO_ENV" = "development" ]; then
+  echo "🐍 start in development mode with runserver"
+  exec python manage.py runserver 0.0.0.0:8000
+else
+  echo "🚀 start in production mode with gunicorn"
+  exec gunicorn core.wsgi:application \
+       --bind 0.0.0.0:8000 \
+       --workers 3
+fi
+
