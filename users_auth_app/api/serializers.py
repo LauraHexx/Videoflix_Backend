@@ -19,7 +19,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('repeated_password')
-        # Setze username auf None, falls nicht gesetzt
         if 'username' not in validated_data:
             validated_data['username'] = None
         user = CustomUser.objects.create_user(**validated_data)

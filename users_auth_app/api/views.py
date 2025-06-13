@@ -29,11 +29,30 @@ class RegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class RegistrationVerifyView(APIView):
+    """
+    Verifies the email token and activates the user's email.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        try:
+            user = CustomUser.objects.get(verification_token=token)
+            user.is_verified = True
+            user.verification_token = ""
+            user.save()
+            # Nach erfolgreicher Verifikation weiterleiten
+            frontend_login_url = getattr(
+                settings, "FRONTEND_URL", "http://localhost:4200") + "/login"
+            return redirect(frontend_login_url)
+        except CustomUser.DoesNotExist:
+            return HttpResponse("Ungültiger oder abgelaufener Verifizierungslink.", status=400)
+
+
 class UserVerified(APIView):
     """
     Checks if a verified user with this email already exists.
     If so, signup is not allowed (already registered & verified).
-    permission_classes = [AllowAny]
     """
     permission_classes = [AllowAny]
 
@@ -48,48 +67,6 @@ class UserVerified(APIView):
         ).exists()
 
         return Response({"userIsAlreadyVerified": already_verified}, status=status.HTTP_200_OK)
-
-
-class VerifyEmailView(APIView):
-    """
-    Verifies the email token and activates the user's email.
-    """
-
-    def get(self, request, token):
-        try:
-            user = CustomUser.objects.get(verification_token=token)
-            user.is_email_verified = True  # falls du so ein Feld hast
-            user.verification_token = ""
-            user.save()
-            # Nach erfolgreicher Verifikation weiterleiten
-            frontend_login_url = getattr(
-                settings, "FRONTEND_URL", "http://localhost:4200") + "/login"
-            return redirect(frontend_login_url)
-        except CustomUser.DoesNotExist:
-            return HttpResponse("Ungültiger oder abgelaufener Verifizierungslink.", status=400)
-
-
-class LoginView(APIView):
-    """Authenticate user using email and return auth token."""
-
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        if serializer.is_valid():
-            email = serializer.validated_data["email"]
-            password = serializer.validated_data["password"]
-
-            user = authenticate(email=email, password=password)
-            if user is not None:
-                token, _ = Token.objects.get_or_create(user=user)
-                return Response({
-                    "token": token.key,
-                    "email": user.email,
-                    "user_id": user.id
-                }, status=status.HTTP_200_OK)
-            return Response({"error": "Invalid credentials."}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoginView(APIView):
