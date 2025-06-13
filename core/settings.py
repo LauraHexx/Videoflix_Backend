@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'core',
     'users_auth_app',
+    'video_flix_app',
 ]
 
 MIDDLEWARE = [
