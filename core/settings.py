@@ -199,3 +199,8 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
 }
+
+AUTHENTICATION_BACKENDS = [
+    'users_auth_app.api.backends.VerifiedEmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]

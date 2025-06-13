@@ -17,6 +17,11 @@ class RegistrationView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Handles user registration by validating and saving the input data.
+        If the data is valid, a new user is created and an authentication token 
+        is returned. Otherwise, validation errors are returned.
+        """
         serializer = RegistrationSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
@@ -29,10 +34,12 @@ class RegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+######### todo#########
 class RegistrationVerifyView(APIView):
     """
     Verifies the email token and activates the user's email.
     """
+
     permission_classes = [AllowAny]
 
     def get(self, request, token):
@@ -49,14 +56,23 @@ class RegistrationVerifyView(APIView):
             return HttpResponse("Ungültiger oder abgelaufener Verifizierungslink.", status=400)
 
 
+####################
+
+
 class UserVerified(APIView):
     """
     Checks if a verified user with this email already exists.
     If so, signup is not allowed (already registered & verified).
     """
+
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
+        """
+        Checks if a user with the given email is already verified.
+        Validates the input and returns a boolean indicating whether the user
+        has already completed email verification.
+        """
         serializer = UserVerifiedSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -76,21 +92,20 @@ class LoginView(APIView):
 
     def post(self, request):
         """
-        Handles user login by validating credentials and checking email verification.
-
+        Handles user login by validating credentials and authentication.
         Returns a token if credentials are valid and the user is verified.
-        Otherwise, returns an appropriate error message.
+        For any failure (invalid data, wrong password, unverified account), 
+        a generic error message is returned to prevent user enumeration.
         """
         serializer = self._validate_serializer(request)
         if not serializer:
-            return self._invalid_serializer_response()
 
-        user = self._authenticate_user(serializer)
-        if not user:
             return self._invalid_credentials_response()
 
-        if not user.is_verified:
-            return self._unverified_user_response()
+        user = self._authenticate_user(serializer)
+        if not user or not user.is_verified:
+
+            return self._invalid_credentials_response()
 
         return self._success_response(user)
 
@@ -101,10 +116,6 @@ class LoginView(APIView):
             return self.serializer
         return None
 
-    def _invalid_serializer_response(self):
-        """Returns error response if serializer validation fails."""
-        return Response(self.serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     def _authenticate_user(self, serializer):
         """Authenticates user using provided email and password."""
         email = serializer.validated_data["email"]
@@ -112,17 +123,10 @@ class LoginView(APIView):
         return authenticate(email=email, password=password)
 
     def _invalid_credentials_response(self):
-        """Returns error response for invalid credentials."""
+        """Returns generic error response for any login failure."""
         return Response(
             {"error": "Invalid login credentials."},
             status=status.HTTP_400_BAD_REQUEST
-        )
-
-    def _unverified_user_response(self):
-        """Returns error response if user email is not verified."""
-        return Response(
-            {"error": "Email address has not been verified."},
-            status=status.HTTP_403_FORBIDDEN
         )
 
     def _success_response(self, user):

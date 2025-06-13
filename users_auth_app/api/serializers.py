@@ -13,11 +13,19 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fields = ("email", "password", "repeated_password")
 
     def validate(self, data):
+        """
+        Ensures that both password fields match.
+        Raises ValidationError if passwords do not match.
+        """
         if data["password"] != data["repeated_password"]:
             raise serializers.ValidationError("Passwords do not match.")
         return data
 
     def create(self, validated_data):
+        """
+        Creates and returns a new user after removing repeated_password.
+        If no username is provided, sets it to None. Also creates an auth token for the user.
+        """
         validated_data.pop('repeated_password')
         if 'username' not in validated_data:
             validated_data['username'] = None
