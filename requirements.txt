@@ -17,6 +17,7 @@ psycopg2-binary==2.9.10
 Pygments==2.19.1
 pytest==8.4.0
 pytest-cov==6.2.1
+pytest-django==4.11.1
 python-dotenv==1.1.0
 redis==6.2.0
 rq==2.3.3

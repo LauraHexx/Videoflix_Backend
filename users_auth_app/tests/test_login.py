@@ -12,7 +12,7 @@ def api_client():
 
 def login(api_client, email, password):
     """Perform login POST request with email and password."""
-    url = "/login/"
+    url = "/api/login/"
     return api_client.post(url, {"email": email, "password": password})
 
 
@@ -59,12 +59,12 @@ def test_login_invalid_email_format_fails(api_client):
 @pytest.mark.django_db
 def test_login_missing_password_fails(api_client):
     """Test login fails with 400 when password is missing."""
-    response = api_client.post("/login/", {"email": "user@example.com"})
+    response = api_client.post("/api/login/", {"email": "user@example.com"})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
 def test_login_missing_email_fails(api_client):
     """Test login fails with 400 when email is missing."""
-    response = api_client.post("/login/", {"password": "testpass123"})
+    response = api_client.post("/api/login/", {"password": "testpass123"})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
