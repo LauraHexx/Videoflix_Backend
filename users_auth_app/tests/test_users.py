@@ -3,25 +3,7 @@ import pytest
 import uuid
 from users_auth_app.models import CustomUser
 from users_auth_app.api.backends import VerifiedEmailBackend
-from utils.test_utils import create_verified_user, create_unverified_user
-
-
-def create_regular_user(email="user@example.com", password="securepass123", username="testuser"):
-    """Creates a standard user with default or provided values."""
-    return CustomUser.objects.create_user(
-        email=email,
-        password=password,
-        username=username
-    )
-
-
-def create_superuser(email="admin@example.com", password="adminpass", **extra_fields):
-    """Creates a superuser with optional override flags like is_staff or is_superuser."""
-    return CustomUser.objects.create_superuser(
-        email=email,
-        password=password,
-        **extra_fields
-    )
+from utils.test_utils import create_verified_user, create_unverified_user, create_regular_user, create_superuser
 
 
 @pytest.mark.django_db
