@@ -1,9 +1,11 @@
 
+from utils.test_utils import create_verified_user, create_unverified_user, create_regular_user, create_superuser
+from users_auth_app.api.backends import VerifiedEmailBackend
+from users_auth_app.models import CustomUser
 import pytest
 import uuid
-from users_auth_app.models import CustomUser
-from users_auth_app.api.backends import VerifiedEmailBackend
-from utils.test_utils import create_verified_user, create_unverified_user, create_regular_user, create_superuser
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 
 @pytest.mark.django_db
@@ -89,3 +91,65 @@ def test_authenticate_not_verified():
         request=None, email=user.email, password=password)
 
     assert authenticated_user is None
+
+
+@pytest.mark.django_db
+def test_create_user_success():
+    """Test creating a normal user with valid email and password."""
+    manager = User.objects
+    email = "testuser@example.com"
+    password = "securepassword"
+    username = "testuser"
+
+    user = manager.create_user(
+        email=email, password=password, username=username)
+
+    assert user.email == email.lower()
+    assert user.username == username
+    assert user.check_password(password)
+    assert not user.is_staff
+    assert not user.is_superuser
+
+
+def test_create_user_no_email_raises():
+    """Test creating user without email raises ValueError."""
+    manager = User.objects
+    with pytest.raises(ValueError, match="The Email must be set"):
+        manager.create_user(email=None, password="pass123")
+
+
+@pytest.mark.django_db
+def test_create_superuser_success():
+    """Test creating a superuser with correct flags."""
+    manager = User.objects
+    email = "admin@example.com"
+    password = "supersecure"
+
+    superuser = manager.create_superuser(email=email, password=password)
+
+    assert superuser.email == email.lower()
+    assert superuser.is_staff is True
+    assert superuser.is_superuser is True
+    assert superuser.check_password(password)
+
+
+def test_create_superuser_is_staff_false_raises():
+    """Test superuser creation fails if is_staff is False."""
+    manager = User.objects
+    with pytest.raises(ValueError, match="Superuser must have is_staff=True."):
+        manager.create_superuser(
+            email="admin@example.com",
+            password="pass",
+            is_staff=False,
+        )
+
+
+def test_create_superuser_is_superuser_false_raises():
+    """Test superuser creation fails if is_superuser is False."""
+    manager = User.objects
+    with pytest.raises(ValueError, match="Superuser must have is_superuser=True."):
+        manager.create_superuser(
+            email="admin@example.com",
+            password="pass",
+            is_superuser=False,
+        )
