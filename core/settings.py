@@ -42,6 +42,11 @@ DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 AUTH_USER_MODEL = "users_auth_app.CustomUser"
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+    "http://127.0.0.1:4200",
+]
+
 
 # Application definition
 
@@ -128,7 +133,7 @@ RQ_QUEUES = {
     },
 }
 
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = 'users_auth_app.api.backends.UnsafeTLSBackend'
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", default=587))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")

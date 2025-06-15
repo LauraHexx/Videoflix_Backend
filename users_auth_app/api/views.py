@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny
+from django.http import HttpResponseServerError
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect
 from django.http import HttpResponse
@@ -19,7 +20,7 @@ class RegistrationView(APIView):
     def post(self, request):
         """
         Handles user registration by validating and saving the input data.
-        If the data is valid, a new user is created and an authentication token 
+        If the data is valid, a new user is created and an authentication token
         is returned. Otherwise, validation errors are returned.
         """
         serializer = RegistrationSerializer(data=request.data)
@@ -34,7 +35,6 @@ class RegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-######### todo#########
 class RegistrationVerifyView(APIView):
     """
     Verifies the email token and activates the user's email.
@@ -46,17 +46,17 @@ class RegistrationVerifyView(APIView):
         try:
             user = CustomUser.objects.get(verification_token=token)
             user.is_verified = True
-            user.verification_token = ""
+            user.verification_token = None
             user.save()
-            # Nach erfolgreicher Verifikation weiterleiten
             frontend_login_url = getattr(
                 settings, "FRONTEND_URL", "http://localhost:4200") + "/login"
             return redirect(frontend_login_url)
         except CustomUser.DoesNotExist:
             return HttpResponse("Ungültiger oder abgelaufener Verifizierungslink.", status=400)
-
-
-####################
+        except Exception as e:
+            import traceback
+            traceback_str = traceback.format_exc()
+            return HttpResponse(f"Interner Serverfehler: {e}", status=500)
 
 
 class UserVerified(APIView):
