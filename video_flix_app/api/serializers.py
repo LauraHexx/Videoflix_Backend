@@ -3,6 +3,7 @@ from ..models import Video, UserWatchHistory, VideoResolution
 
 
 class VideoResolutionSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = VideoResolution
         fields = ['height', 'file']
@@ -11,8 +12,7 @@ class VideoResolutionSerializer(serializers.ModelSerializer):
 
 class VideoSerializer(serializers.ModelSerializer):
     resolutions = VideoResolutionSerializer(
-        many=True, read_only=True)
-    thumbnail = serializers.ImageField(read_only=True)
+        many=True, read_only=True, context={'request': None})
 
     class Meta:
         model = Video
@@ -25,16 +25,6 @@ class VideoSerializer(serializers.ModelSerializer):
             "id", "created_at", "updated_at",
             "thumbnail", "resolutions"
         ]
-
-    def create(self, validated_data):
-        video = Video.objects.create(
-            title=validated_data["title"],
-            description=validated_data.get("description", ""),
-            video_file=validated_data["video_file"],
-            genre=validated_data.get("genre", None),
-            thumbnail=None
-        )
-        return video
 
     def update(self, instance, validated_data):
         instance.title = validated_data.get("title", instance.title)
