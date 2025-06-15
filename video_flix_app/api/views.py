@@ -9,18 +9,6 @@ class VideoViewSet(viewsets.ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [AllowAny]
 
-    def get_queryset(self):
-        return self.queryset
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-    def perform_update(self, serializer):
-        serializer.save(user=self.request.user)
-
-    def perform_destroy(self, instance):
-        instance.delete()
-
 
 class UserWatchHistoryViewSet(viewsets.ModelViewSet):
     queryset = UserWatchHistory.objects.all()
