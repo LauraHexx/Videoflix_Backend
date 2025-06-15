@@ -1,40 +1,45 @@
-import ssl
 import uuid
-from django.conf import settings
-from django.core.mail import EmailMultiAlternatives, get_connection
+from django.core.mail import get_connection, EmailMultiAlternatives
 from django.template.loader import render_to_string
+from django.conf import settings
 from users_auth_app.models import CustomUser
 
 
-def send_verification_email_task(user_id: int) -> None:
-    """
-    Sends a verification email with token link to the user.
-    Token is saved in user model and included in the confirmation URL.
-    Uses Django's email backend with custom TLS connection.
-    """
-    print(f"[INFO] Sending verification email to user ID: {user_id}")
-
+def get_user_by_id(user_id: int):
+    """Retrieve user by ID or return None if not found."""
     try:
-        user = CustomUser.objects.get(pk=user_id)
+        return CustomUser.objects.get(pk=user_id)
     except CustomUser.DoesNotExist:
-        print(f"[WARNING] User with ID {user_id} does not exist.")
-        return
+        return None
 
-    token = str(uuid.uuid4())
+
+def generate_verification_token() -> str:
+    """Generate a new UUID4 token as string."""
+    return str(uuid.uuid4())
+
+
+def save_verification_token(user, token: str) -> None:
+    """Save the verification token to the user model."""
     user.verification_token = token
     user.save(update_fields=["verification_token"])
-    print(f"[INFO] Saved verification token for user {user.email}: {token}")
 
+
+def build_verification_link(token: str) -> str:
+    """Build the full verification URL with token."""
     backend_url = getattr(settings, "BACKEND_URL", "http://localhost:8000")
-    verification_link = f"{backend_url}/api/registration/verify/{token}/"
-    print(f"[INFO] Generated verification link: {verification_link}")
+    return f"{backend_url}/api/registration/verify/{token}/"
 
-    html_content = render_to_string("users_auth_app/confirm_email.html", {
+
+def render_email_html(user, verification_link: str) -> str:
+    """Render the HTML content for the verification email."""
+    return render_to_string("users_auth_app/confirm_email.html", {
         "user": user,
         "verification_link": verification_link,
     })
-    print(f"[INFO] Rendered HTML email content.")
 
+
+def get_email_connection():
+    """Establish SMTP connection with email settings."""
     try:
         connection = get_connection(
             fail_silently=False,
@@ -47,21 +52,44 @@ def send_verification_email_task(user_id: int) -> None:
         )
         print(
             f"[INFO] Email connection established with host: {settings.EMAIL_HOST}")
+        return connection
     except Exception as e:
         print(f"[ERROR] Failed to establish SMTP connection: {e}")
+        return None
+
+
+def send_email(user_email: str, html_content: str, connection) -> None:
+    """Send the verification email via the given SMTP connection."""
+    if not connection:
         return
 
     msg = EmailMultiAlternatives(
-        subject="Verify your email address",
+        subject="Videoflix - Verify your email address",
         body="",
         from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[user.email],
+        to=[user_email],
         connection=connection,
     )
     msg.attach_alternative(html_content, "text/html")
 
     try:
         msg.send()
-        print(f"[SUCCESS] Verification email sent to {user.email}")
+        print(f"[SUCCESS] Verification email sent to {user_email}")
     except Exception as e:
-        print(f"[ERROR] Email send error for user {user_id}: {e}")
+        print(f"[ERROR] Email send error for user {user_email}: {e}")
+
+
+def send_verification_email_task(user_id: int) -> None:
+    """Main task: orchestrates sending the verification email to the user."""
+    user = get_user_by_id(user_id)
+    if not user:
+        return
+
+    token = generate_verification_token()
+    save_verification_token(user, token)
+
+    verification_link = build_verification_link(token)
+    html_content = render_email_html(user, verification_link)
+
+    connection = get_email_connection()
+    send_email(user.email, html_content, connection)
