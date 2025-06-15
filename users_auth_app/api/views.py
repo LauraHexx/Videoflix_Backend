@@ -52,10 +52,8 @@ class RegistrationVerifyView(APIView):
                 settings, "FRONTEND_URL", "http://localhost:4200") + "/login"
             return redirect(frontend_login_url)
         except CustomUser.DoesNotExist:
-            return HttpResponse("Ungültiger oder abgelaufener Verifizierungslink.", status=400)
+            return HttpResponse("Invalid or expired verification link.", status=400)
         except Exception as e:
-            import traceback
-            traceback_str = traceback.format_exc()
             return HttpResponse(f"Interner Serverfehler: {e}", status=500)
 
 
