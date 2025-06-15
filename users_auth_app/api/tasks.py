@@ -64,7 +64,7 @@ def send_email(user_email: str, html_content: str, connection) -> None:
         return
 
     msg = EmailMultiAlternatives(
-        subject="Videoflix - Verify your email address",
+        subject="Confirm your email",
         body="",
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[user_email],
