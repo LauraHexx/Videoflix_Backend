@@ -5,43 +5,46 @@ from django.contrib.auth.hashers import make_password
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
+    """Register or update unverified user."""
+
     password = serializers.CharField(write_only=True)
     repeated_password = serializers.CharField(write_only=True)
+    email = serializers.EmailField(validators=[])
 
     class Meta:
         model = CustomUser
         fields = ("email", "password", "repeated_password")
 
-    def validate_email(self, email):
-        user = CustomUser.objects.filter(email=email).first()
-        if user and user.is_verified:
-            raise serializers.ValidationError(
-                "User with this email already exists.")
-        return email
-
     def validate(self, data):
+        """Ensure passwords match."""
         if data["password"] != data["repeated_password"]:
             raise serializers.ValidationError("Passwords do not match.")
         return data
 
     def create(self, validated_data):
+        """Create new or update unverified user; error if verified user exists."""
         email = validated_data["email"]
         password = validated_data["password"]
 
         user = CustomUser.objects.filter(email=email).first()
-        if user and not user.is_verified:
+        if user:
+            if user.is_verified:
+                raise serializers.ValidationError({
+                    "email": ["User with this email already exists."]
+                })
             return self._update_unverified_user(user, password)
 
         return self._create_new_user(validated_data)
 
     def _update_unverified_user(self, user, password):
+        """Update unverified user password and mark verified."""
         user.password = make_password(password)
-        user.is_verified = True
         user.save(update_fields=["password", "is_verified"])
         Token.objects.get_or_create(user=user)
         return user
 
     def _create_new_user(self, validated_data):
+        """Create new user and token."""
         validated_data.pop("repeated_password")
         user = CustomUser.objects.create_user(
             email=validated_data["email"],

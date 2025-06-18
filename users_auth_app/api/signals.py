@@ -11,7 +11,7 @@ def send_email_on_user_create(sender, instance, created, **kwargs) -> None:
     Enqueues email verification task for newly created users (not verifed),
     except when the first superuser is created.
     """
-    if not created or instance.is_verified:
+    if instance.is_verified:
         return
 
     # Prevent sending email if this is the very first user and a superuser
