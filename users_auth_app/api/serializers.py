@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from ..models import CustomUser
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.hashers import make_password
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    """Validate and create a new user with email and password."""
     password = serializers.CharField(write_only=True)
     repeated_password = serializers.CharField(write_only=True)
 
@@ -12,24 +12,42 @@ class RegistrationSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ("email", "password", "repeated_password")
 
+    def validate_email(self, email):
+        user = CustomUser.objects.filter(email=email).first()
+        if user and user.is_verified:
+            raise serializers.ValidationError(
+                "User with this email already exists.")
+        return email
+
     def validate(self, data):
-        """
-        Ensures that both password fields match.
-        Raises ValidationError if passwords do not match.
-        """
         if data["password"] != data["repeated_password"]:
             raise serializers.ValidationError("Passwords do not match.")
         return data
 
     def create(self, validated_data):
-        """
-        Creates and returns a new user after removing repeated_password.
-        If no username is provided, sets it to None. Also creates an auth token for the user.
-        """
-        validated_data.pop('repeated_password')
-        if 'username' not in validated_data:
-            validated_data['username'] = None
-        user = CustomUser.objects.create_user(**validated_data)
+        email = validated_data["email"]
+        password = validated_data["password"]
+
+        user = CustomUser.objects.filter(email=email).first()
+        if user and not user.is_verified:
+            return self._update_unverified_user(user, password)
+
+        return self._create_new_user(validated_data)
+
+    def _update_unverified_user(self, user, password):
+        user.password = make_password(password)
+        user.is_verified = True
+        user.save(update_fields=["password", "is_verified"])
+        Token.objects.get_or_create(user=user)
+        return user
+
+    def _create_new_user(self, validated_data):
+        validated_data.pop("repeated_password")
+        user = CustomUser.objects.create_user(
+            email=validated_data["email"],
+            password=validated_data["password"],
+            username=None
+        )
         Token.objects.create(user=user)
         return user
 
