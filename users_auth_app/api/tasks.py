@@ -93,3 +93,38 @@ def send_verification_email_task(user_id: int) -> None:
 
     connection = get_email_connection()
     send_email(user.email, html_content, connection)
+
+
+def send_password_reset_email_task(user_id: int) -> None:
+    try:
+        user = CustomUser.objects.get(pk=user_id)
+    except CustomUser.DoesNotExist:
+        return
+
+    reset_link = f"{settings.FRONTEND_URL}/reset-password/{user.verification_token}/"
+    html_content = render_to_string("users_auth_app/reset_password.html", {
+        "reset_link": reset_link
+    })
+
+    connection = get_connection(
+        host=settings.EMAIL_HOST,
+        port=settings.EMAIL_PORT,
+        username=settings.EMAIL_HOST_USER,
+        password=settings.EMAIL_HOST_PASSWORD,
+        use_tls=settings.EMAIL_USE_TLS,
+        use_ssl=settings.EMAIL_USE_SSL,
+    )
+
+    msg = EmailMultiAlternatives(
+        subject="Reset your password",
+        body="",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email],
+        connection=connection,
+    )
+    msg.attach_alternative(html_content, "text/html")
+
+    try:
+        msg.send()
+    except Exception as e:
+        print(f"[ERROR] Password reset email failed for {user.email}: {e}")

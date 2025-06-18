@@ -43,3 +43,18 @@ class LoginSerializer(serializers.Serializer):
     """Validate login credentials (email and password)."""
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.UUIDField()
+    password = serializers.CharField(write_only=True)
+    password_confirmed = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data["password"] != data["password_confirmed"]:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data

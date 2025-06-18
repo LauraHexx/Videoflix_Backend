@@ -3,13 +3,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny
-from django.http import HttpResponseServerError
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.conf import settings
-from .serializers import RegistrationSerializer, LoginSerializer, UserVerifiedSerializer
+import uuid
+from .serializers import RegistrationSerializer, LoginSerializer, UserVerifiedSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 from ..models import CustomUser
+from users_auth_app.api.tasks import send_password_reset_email_task
 
 
 class RegistrationView(APIView):
@@ -135,3 +136,43 @@ class LoginView(APIView):
             "email": user.email,
             "user_id": user.id
         }, status=status.HTTP_200_OK)
+
+
+class PasswordResetRequestView(APIView):
+    """Handles password reset requests by sending a reset link via email."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            try:
+                user = CustomUser.objects.get(email=email, is_verified=True)
+                user.verification_token = uuid.uuid4()
+                user.save(update_fields=["verification_token"])
+                send_password_reset_email_task(user.id)
+            except CustomUser.DoesNotExist:
+                pass  # Silent for security
+            return Response({"detail": "If this email exists, a reset link was sent."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetConfirmView(APIView):
+    """Handles setting the new password after clicking the reset link."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            token = serializer.validated_data["token"]
+            try:
+                user = CustomUser.objects.get(verification_token=token)
+                user.set_password(serializer.validated_data["password"])
+                user.verification_token = None
+                user.save(update_fields=["password", "verification_token"])
+                return Response({"detail": "Password reset successful."}, status=status.HTTP_200_OK)
+            except CustomUser.DoesNotExist:
+                return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
