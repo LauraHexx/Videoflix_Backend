@@ -58,13 +58,13 @@ def get_email_connection():
         return None
 
 
-def send_email(user_email: str, html_content: str, connection) -> None:
+def send_email(user_email: str, html_content: str, connection, subject: str) -> None:
     """Send the verification email via the given SMTP connection."""
     if not connection:
         return
 
     msg = EmailMultiAlternatives(
-        subject="Confirm your email",
+        subject=subject,
         body="",
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[user_email],
@@ -92,7 +92,9 @@ def send_verification_email_task(user_id: int) -> None:
     html_content = render_email_html(user, verification_link)
 
     connection = get_email_connection()
-    send_email(user.email, html_content, connection)
+    subject = "Confirm your email"
+
+    send_email(user.email, html_content, connection, subject)
 
 
 def build_password_reset_link(token: str) -> str:
@@ -104,7 +106,7 @@ def build_password_reset_link(token: str) -> str:
 
 def render_password_reset_email_html(reset_link: str) -> str:
     """Render HTML content for the password reset email."""
-    html = render_to_string("users_auth_app/reset_password.html", {
+    html = render_to_string("users_auth_app/reset_password_email.html", {
         "reset_link": reset_link,
     })
     return html
@@ -120,5 +122,6 @@ def send_password_reset_email_task(user_id: int) -> None:
     html_content = render_password_reset_email_html(reset_link)
 
     connection = get_email_connection()
+    subject = "Reset your Password"
 
-    send_email(user.email, html_content, connection)
+    send_email(user.email, html_content, connection, subject)
