@@ -74,7 +74,7 @@ def send_email(user_email: str, html_content: str, connection) -> None:
 
     try:
         msg.send()
-        print(f"[SUCCESS] Verification email sent to {user_email}")
+        print(f"[SUCCESS] Email sent to {user_email}")
     except Exception as e:
         print(f"[ERROR] Email send error for user {user_email}: {e}")
 
@@ -95,36 +95,30 @@ def send_verification_email_task(user_id: int) -> None:
     send_email(user.email, html_content, connection)
 
 
+def build_password_reset_link(token: str) -> str:
+    """Build the full frontend URL for password reset with token."""
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:4200")
+    full_link = f"{frontend_url}/reset-password/{token}/"
+    return full_link
+
+
+def render_password_reset_email_html(reset_link: str) -> str:
+    """Render HTML content for the password reset email."""
+    html = render_to_string("users_auth_app/reset_password.html", {
+        "reset_link": reset_link,
+    })
+    return html
+
+
 def send_password_reset_email_task(user_id: int) -> None:
-    try:
-        user = CustomUser.objects.get(pk=user_id)
-    except CustomUser.DoesNotExist:
+    """Sends a password reset email using shared helper functions."""
+    user = get_user_by_id(user_id)
+    if not user:
         return
 
-    reset_link = f"{settings.FRONTEND_URL}/reset-password/{user.verification_token}/"
-    html_content = render_to_string("users_auth_app/reset_password.html", {
-        "reset_link": reset_link
-    })
+    reset_link = build_password_reset_link(user.verification_token)
+    html_content = render_password_reset_email_html(reset_link)
 
-    connection = get_connection(
-        host=settings.EMAIL_HOST,
-        port=settings.EMAIL_PORT,
-        username=settings.EMAIL_HOST_USER,
-        password=settings.EMAIL_HOST_PASSWORD,
-        use_tls=settings.EMAIL_USE_TLS,
-        use_ssl=settings.EMAIL_USE_SSL,
-    )
+    connection = get_email_connection()
 
-    msg = EmailMultiAlternatives(
-        subject="Reset your password",
-        body="",
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[user.email],
-        connection=connection,
-    )
-    msg.attach_alternative(html_content, "text/html")
-
-    try:
-        msg.send()
-    except Exception as e:
-        print(f"[ERROR] Password reset email failed for {user.email}: {e}")
+    send_email(user.email, html_content, connection)

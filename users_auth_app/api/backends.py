@@ -51,7 +51,6 @@ class UnsafeTLSBackend(EmailBackend):
                 self.host,
                 self.port,
                 timeout=self.timeout,
-                # local_hostname=self.local_hostname,  <-- entfernen!
             )
 
             if self.use_tls:
