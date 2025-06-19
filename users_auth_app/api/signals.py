@@ -6,17 +6,17 @@ from users_auth_app.api.tasks import send_verification_email_task
 
 
 @receiver(post_save, sender=CustomUser)
-def send_email_on_user_create(sender, instance, created, **kwargs) -> None:
+def send_email_on_user_create_or_password_update(sender, instance, created, **kwargs):
     """
-    Enqueues email verification task for newly created users (not verifed),
-    except when the first superuser is created.
+    Enqueue verification email if:
+    - User is newly created and not verified, or
+    - User is updated (not verified) and password was changed.
+    Never send for any superuser.
     """
-    if instance.is_verified:
+    if instance.is_verified or instance.is_superuser:
         return
 
-    # Prevent sending email if this is the very first user and a superuser
-    if CustomUser.objects.count() == 1 and instance.is_superuser:
-        return
-
-    queue = django_rq.get_queue("default")
-    queue.enqueue(send_verification_email_task, instance.pk)
+    update_fields = kwargs.get("update_fields")
+    if created or (update_fields and "password" in update_fields):
+        queue = django_rq.get_queue("default")
+        queue.enqueue(send_verification_email_task, instance.pk)

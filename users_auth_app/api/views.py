@@ -13,6 +13,30 @@ from ..models import CustomUser
 from users_auth_app.api.tasks import send_password_reset_email_task
 
 
+# class RegistrationView(APIView):
+#    """Handle user registration and return token and user info."""
+#
+#    permission_classes = [AllowAny]
+#
+#    def post(self, request):
+#        """
+#        Handles user registration by validating and saving the input data.
+#        If the data is valid, a new user is created and an authentication token
+#        is returned. Otherwise, validation errors are returned.
+#        """
+#        serializer = RegistrationSerializer(data=request.data)
+#        if not serializer.is_valid():
+#            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#
+#        user, created = serializer.save()
+#        token = Token.objects.get(user=user)
+#        return Response({
+#            "token": token.key,
+#            "email": user.email,
+#            "user_id": user.id
+#        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
 class RegistrationView(APIView):
     """Handle user registration and return token and user info."""
 
@@ -20,14 +44,43 @@ class RegistrationView(APIView):
 
     def post(self, request):
         """
-        Handles user registration by validating and saving the input data.
-        If the data is valid, a new user is created and an authentication token
-        is returned. Otherwise, validation errors are returned.
+        Handles registration or checks if user is already verified.
+        """
+        email = request.data.get("email")
+        password = request.data.get("password")
+        repeated_password = request.data.get("repeated_password")
+
+        if email:
+            return self._handle_email_check(email, password, repeated_password, request)
+        return self._registration_response(request)
+
+    def _handle_email_check(self, email, password, repeated_password, request):
+        """
+        Checks if user is already verified and returns appropriate response.
+        """
+        already_verified = CustomUser.objects.filter(
+            email=email, is_verified=True
+        ).exists()
+        if not password and not repeated_password or already_verified:
+            return self._verified_response(already_verified)
+        return self._registration_response(request)
+
+    def _verified_response(self, already_verified):
+        """
+        Returns a neutral response about verification status.
+        """
+        return Response(
+            {"userIsAlreadyVerified": already_verified},
+            status=status.HTTP_200_OK
+        )
+
+    def _registration_response(self, request):
+        """
+        Handles registration and returns token and user info.
         """
         serializer = RegistrationSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
         user, created = serializer.save()
         token = Token.objects.get(user=user)
         return Response({
@@ -38,7 +91,7 @@ class RegistrationView(APIView):
 
 
 class RegistrationVerifyView(APIView):
-    """Handle email verification via token."""
+    """Handle email verification via token and redirects to login when success."""
 
     permission_classes = [AllowAny]
 
@@ -54,7 +107,8 @@ class RegistrationVerifyView(APIView):
             return self._invalid_token_response("Invalid or expired verification link.")
 
         self._verify_user(user)
-        return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+        login_url = f"{settings.FRONTEND_URL}/login"
+        return redirect(login_url)
 
     def _get_user_by_token(self, token):
         """
@@ -75,32 +129,6 @@ class RegistrationVerifyView(APIView):
         Return 400 response with given message.
         """
         return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class UserVerified(APIView):
-    """
-    Checks if a verified user with this email already exists.
-    If so, signup is not allowed (already registered & verified).
-    """
-
-    permission_classes = [AllowAny]
-
-    def post(self, request, *args, **kwargs):
-        """
-        Checks if a user with the given email is already verified.
-        Validates the input and returns a boolean indicating whether the user
-        has already completed email verification.
-        """
-        serializer = UserVerifiedSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        email = serializer.validated_data["email"]
-
-        already_verified = CustomUser.objects.filter(
-            email=email, is_verified=True
-        ).exists()
-
-        return Response({"userIsAlreadyVerified": already_verified}, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):

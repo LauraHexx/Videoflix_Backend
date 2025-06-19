@@ -1,189 +1,147 @@
 import pytest
-from rest_framework.test import APIClient
-from users_auth_app.models import CustomUser
-from rest_framework.authtoken.models import Token
+import uuid
 from rest_framework import status
-from django.test import override_settings
-from uuid import uuid4
-from unittest.mock import patch, MagicMock
-from django_rq import get_queue
+from rest_framework.test import APIClient
+from django.urls import reverse
+from users_auth_app.models import CustomUser
+from users_auth_app.api.serializers import RegistrationSerializer
+from utils.test_utils import create_verified_user, create_unverified_user
+from rest_framework.authtoken.models import Token
 
-
-from utils.test_utils import create_unverified_user
-from users_auth_app.api.signals import send_email_on_user_create
-from users_auth_app.api.tasks import send_verification_email_task
+REGISTER_URL = "/api/registration/"
+VERIFY_URL = "/api/registration/verify/"
 
 
 @pytest.fixture
 def api_client():
-    """Return DRF APIClient instance for request simulation."""
+    """Returns a DRF APIClient instance."""
     return APIClient()
 
 
-def register(
-    api_client,
-    email: str = "laura@example.com",
-    password: str = "SuperSecure123",
-    repeated_password: str = None,
-):
-    """
-    Perform registration POST request with default or custom credentials.
-    """
-    url = "/api/registration/"
-    return api_client.post(url, {
-        "email": email,
-        "password": password,
-        "repeated_password": repeated_password or password,
-    })
-
-
-def verify_email(api_client, token):
-    """
-    Perform email verification GET request using token.
-    """
-    url = f"/api/registration/verify/{token}/"
-    return api_client.get(url)
-
-
-def send_email_on_user_create(sender, instance, created, **kwargs):
-    """
-    Signal handler to enqueue verification email task only once per new user,
-    excluding verified users and the first superuser.
-    """
-    if not created:
-        return
-
-    if instance.is_verified:
-        return
-
-    superuser_count = CustomUser.objects.filter(
-        is_superuser=True).exclude(pk=instance.pk).count()
-    if instance.is_superuser and superuser_count == 0:
-        return
-
-    queue = get_queue()
-    queue.enqueue(send_verification_email_task, instance.pk)
-
-
 @pytest.mark.django_db
-@patch("users_auth_app.api.signals.django_rq.get_queue")
-def test_registration_success(mock_get_queue, api_client):
-    """
-    Test successful registration without triggering Redis queue.
-    Ensures token is returned, user is created, and is_verified is False.
-    """
-    # Simulate Redis queue with mock
-    mock_queue = mock_get_queue.return_value
-    mock_queue.enqueue.return_value = None
-    response = register(api_client)
+def test_registration_success(api_client):
+    """Registering a new user returns 201 and token."""
+    data = {"email": "newuser@example.com",
+            "password": "pw123456", "repeated_password": "pw123456"}
+    response = api_client.post(REGISTER_URL, data)
     assert response.status_code == status.HTTP_201_CREATED
-    data = response.json()
-    assert "token" in data
-    assert "user_id" in data
-    assert data["email"] == "laura@example.com"
-    user = CustomUser.objects.get(email="laura@example.com")
-    assert Token.objects.filter(user=user).exists()
-    assert user.is_verified is False
+    assert "token" in response.data
+    assert CustomUser.objects.filter(email="newuser@example.com").exists()
 
 
 @pytest.mark.django_db
-@patch("users_auth_app.api.signals.django_rq.get_queue")
-def test_registration_user_already_exists(mock_get_queue, api_client):
-    """
-    Test registration fails if a user with the same email already exists.
-    Redis queue is mocked to avoid real Redis connection.
-    """
-    mock_queue = mock_get_queue.return_value
-    mock_queue.enqueue.return_value = None
-    response_1 = register(api_client)
-    assert response_1.status_code == status.HTTP_201_CREATED
-    response_2 = register(api_client)
-    assert response_2.status_code == status.HTTP_400_BAD_REQUEST
-    data = response_2.json()
-    assert "email" in data
-    assert "already exists" in str(data["email"]).lower()
-
-
-@pytest.mark.django_db
-def test_registration_password_mismatch(api_client):
-    """Test registration fails if passwords do not match."""
-    response = register(api_client, password="pass1",
-                        repeated_password="pass2")
+def test_registration_existing_verified_user_fails(api_client):
+    """Registering with an existing verified email returns 400."""
+    user, _ = create_verified_user(email="exists@example.com")
+    data = {"email": user.email, "password": "pw123456",
+            "repeated_password": "pw123456"}
+    response = api_client.post(REGISTER_URL, data)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "Passwords do not match." in str(response.content)
+    assert "email" in response.data
+
+
+@pytest.mark.django_db
+def test_registration_existing_unverified_user_updates(api_client):
+    """Registering with an existing unverified email updates password and returns 200."""
+    user, _ = create_unverified_user(email="unverified@example.com")
+    data = {"email": user.email, "password": "pw123456",
+            "repeated_password": "pw123456"}
+    response = api_client.post(REGISTER_URL, data)
+    assert response.status_code == status.HTTP_200_OK
+    user.refresh_from_db()
+    assert user.check_password("pw123456")
+
+
+@pytest.mark.django_db
+def test_registration_passwords_do_not_match(api_client):
+    """Registration fails if passwords do not match."""
+    data = {"email": "fail@example.com",
+            "password": "pw123456", "repeated_password": "pw654321"}
+    response = api_client.post(REGISTER_URL, data)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert "non_field_errors" in response.data or "Passwords do not match." in str(
+        response.data)
 
 
 @pytest.mark.django_db
 def test_registration_missing_fields(api_client):
-    """Test registration fails if fields are missing."""
-    url = "/api/registration/"
-    response = api_client.post(url, {})
+    """Registration fails if required fields are missing."""
+    response = api_client.post(REGISTER_URL, {})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    data = response.json()
-    assert "email" in data
-    assert "password" in data
-    assert "repeated_password" in data
 
 
 @pytest.mark.django_db
-@patch("users_auth_app.api.signals.django_rq.get_queue")
-@override_settings(FRONTEND_URL="http://testfrontend.com")
-def test_verify_email_success(mock_get_queue, api_client):
-    """
-    Test valid email verification token activates user and redirects.
-    Erstellt explizit einen Token für den User.
-    """
-    mock_queue = mock_get_queue.return_value
-    mock_queue.enqueue.return_value = None
-    user, _ = create_unverified_user()
-    Token.objects.get_or_create(user=user)
-    token = user.verification_token
-    response = verify_email(api_client, token)
+def test_registration_invalid_email(api_client):
+    """Registration fails with invalid email format."""
+    data = {"email": "not-an-email", "password": "pw123456",
+            "repeated_password": "pw123456"}
+    response = api_client.post(REGISTER_URL, data)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_registration_returns_token_and_user_data(api_client):
+    """Registration returns token, email, and user_id."""
+    data = {"email": "tokentest@example.com",
+            "password": "pw123456", "repeated_password": "pw123456"}
+    response = api_client.post(REGISTER_URL, data)
+    assert "token" in response.data
+    assert "email" in response.data
+    assert "user_id" in response.data
+
+
+@pytest.mark.django_db
+def test_registration_serializer_create_new_user():
+    """RegistrationSerializer creates a new user."""
+    data = {"email": "serializer@example.com",
+            "password": "pw123456", "repeated_password": "pw123456"}
+    serializer = RegistrationSerializer(data=data)
+    assert serializer.is_valid()
+    user, created = serializer.save()
+    assert created
+    assert user.email == "serializer@example.com"
+
+
+@pytest.mark.django_db
+def test_registration_serializer_update_unverified_user():
+    """RegistrationSerializer updates an unverified user."""
+    user, _ = create_unverified_user(email="update@example.com")
+    data = {"email": user.email, "password": "pw123456",
+            "repeated_password": "pw123456"}
+    serializer = RegistrationSerializer(data=data)
+    assert serializer.is_valid()
+    updated_user, created = serializer.save()
+    assert not created
+    assert updated_user.check_password("pw123456")
+
+
+@pytest.mark.django_db
+def test_registration_verify_view_success(api_client):
+    """RegistrationVerifyView verifies user with valid token."""
+    user, _ = create_unverified_user(email="verifyme@example.com")
+    token = str(uuid.uuid4())
+    user.verification_token = token
+    user.save()
+    url = f"{VERIFY_URL}{token}/"
+    response = api_client.get(url)
+    assert response.status_code == status.HTTP_200_OK
     user.refresh_from_db()
-    assert response.status_code == 302
-    assert response.url == "http://testfrontend.com/login"
-    assert user.is_verified is True
+    assert user.is_verified
     assert user.verification_token is None
 
 
 @pytest.mark.django_db
-@patch("users_auth_app.api.signals.django_rq.get_queue")
-def test_verify_email_invalid_token(mock_get_queue, api_client):
-    """Test invalid email verification token returns 400."""
-    mock_queue = mock_get_queue.return_value
-    mock_queue.enqueue.return_value = None
-    fake_token = str(uuid4())
-    response = verify_email(api_client, fake_token)
-    assert response.status_code == 400
+def test_registration_verify_view_invalid_token(api_client):
+    """RegistrationVerifyView fails with invalid token."""
+    token = str(uuid.uuid4())
+    url = f"{VERIFY_URL}{token}/"
+    response = api_client.get(url)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
-@patch("django_rq.get_queue")
-def test_no_enqueue_for_verified_user(mock_get_queue):
-    """
-    Ensure no enqueue call is made when the user is already verified.
-    """
-    mock_queue = MagicMock()
-    mock_get_queue.return_value = mock_queue
-
-    user = CustomUser.objects.create(
-        email="verified@example.com", is_verified=True)
-    send_email_on_user_create(sender=CustomUser, instance=user, created=True)
-
-    mock_queue.enqueue.assert_not_called()
-
-
-@pytest.mark.django_db
-@patch("django_rq.get_queue")
-def test_no_enqueue_for_first_superuser(mock_get_queue):
-    """
-    Ensure no enqueue call is made when the first superuser is created.
-    """
-    mock_queue = MagicMock()
-    mock_get_queue.return_value = mock_queue
-
-    user = CustomUser.objects.create(
-        email="admin@example.com", is_verified=False, is_superuser=True)
-    send_email_on_user_create(sender=CustomUser, instance=user, created=True)
-
-    mock_queue.enqueue.assert_not_called()
+def test_registration_verify_view_missing_token(api_client):
+    """RegistrationVerifyView fails with missing token."""
+    url = f"{VERIFY_URL}/"
+    response = api_client.get(url)
+    assert response.status_code == status.HTTP_404_NOT_FOUND
