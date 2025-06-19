@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'django_rq',
+    'storages',
     'rest_framework',
     'rest_framework.authtoken',
     'core',
@@ -133,6 +134,39 @@ RQ_QUEUES = {
     },
 }
 
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "bucket_name": os.environ.get("AWS_STORAGE_BUCKET_NAME"),
+            "endpoint_url": os.environ.get("AWS_S3_ENDPOINT_URL"),
+            "access_key": os.environ.get("AWS_ACCESS_KEY_ID"),
+            "secret_key": os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            "region_name": os.environ.get("AWS_S3_REGION_NAME", "eu-central-1"),
+            "use_ssl": False,
+            "verify": False,
+            "addressing_style": "path",
+            "default_acl": None,
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL")
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "eu-central-1")
+AWS_S3_USE_SSL = False
+AWS_S3_VERIFY = False
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_ADDRESSING_STYLE = os.environ.get(
+    "AWS_S3_ADDRESSING_STYLE", "path")
+AWS_DEFAULT_ACL = os.environ.get("AWS_DEFAULT_ACL", None)
+
+MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+
 EMAIL_BACKEND = 'users_auth_app.api.backends.UnsafeTLSBackend'
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", default=587))
@@ -184,9 +218,12 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "static"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-MEDIA_URL = "/api/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+
+# MEDIA_URL = "/api/media/"
+# MEDIA_ROOT = BASE_DIR / "media"
+
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 

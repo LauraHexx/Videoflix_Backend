@@ -25,10 +25,8 @@ services:
     container_name: videoflix_backend
     environment:
       - DJANGO_ENV=development
-
     volumes:
       - .:/app
-      - ./media:/app/media
       - videoflix_static:/app/static
     ports:
       - '8000:8000'
