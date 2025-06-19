@@ -6,7 +6,7 @@ from users_auth_app.api.tasks import send_verification_email_task
 
 
 @receiver(post_save, sender=CustomUser)
-def send_email_on_user_create_or_password_update(sender, instance, created, **kwargs):
+def send_email_on_user_create(sender, instance, created, **kwargs):
     """
     Enqueue verification email if:
     - User is newly created and not verified, or
