@@ -25,37 +25,56 @@ class RegistrationView(APIView):
         is returned. Otherwise, validation errors are returned.
         """
         serializer = RegistrationSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            token = Token.objects.get(user=user)
-            return Response({
-                "token": token.key,
-                "email": user.email,
-                "user_id": user.id
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user, created = serializer.save()
+        token = Token.objects.get(user=user)
+        return Response({
+            "token": token.key,
+            "email": user.email,
+            "user_id": user.id
+        }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
 
 class RegistrationVerifyView(APIView):
-    """
-    Verifies the email token and activates the user's email.
-    """
+    """Handle email verification via token."""
 
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-        try:
-            user = CustomUser.objects.get(verification_token=token)
-            user.is_verified = True
-            user.verification_token = None
-            user.save()
-            frontend_login_url = getattr(
-                settings, "FRONTEND_URL", "http://localhost:4200") + "/login"
-            return redirect(frontend_login_url)
-        except CustomUser.DoesNotExist:
-            return HttpResponse("Invalid or expired verification link.", status=400)
-        except Exception as e:
-            return HttpResponse(f"Interner Serverfehler: {e}", status=500)
+        """
+        Verify token and activate user or return error response.
+        """
+        if not token:
+            return self._invalid_token_response("Token is missing.")
+
+        user = self._get_user_by_token(token)
+        if not user:
+            return self._invalid_token_response("Invalid or expired verification link.")
+
+        self._verify_user(user)
+        return Response({"detail": "Email verified successfully."}, status=status.HTTP_200_OK)
+
+    def _get_user_by_token(self, token):
+        """
+        Return user by token or None if not found.
+        """
+        return CustomUser.objects.filter(verification_token=token).first()
+
+    def _verify_user(self, user):
+        """
+        Mark user as verified and clear token.
+        """
+        user.is_verified = True
+        user.verification_token = None
+        user.save(update_fields=["is_verified", "verification_token"])
+
+    def _invalid_token_response(self, message):
+        """
+        Return 400 response with given message.
+        """
+        return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserVerified(APIView):

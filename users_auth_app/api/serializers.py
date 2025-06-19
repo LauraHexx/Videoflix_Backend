@@ -22,7 +22,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        """Create new or update unverified user; error if verified user exists."""
         email = validated_data["email"]
         password = validated_data["password"]
 
@@ -32,9 +31,13 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     "email": ["User with this email already exists."]
                 })
-            return self._update_unverified_user(user, password)
+            user = self._update_unverified_user(user, password)
+            created = False
+        else:
+            user = self._create_new_user(validated_data)
+            created = True
 
-        return self._create_new_user(validated_data)
+        return user, created
 
     def _update_unverified_user(self, user, password):
         """Update unverified user password and mark verified."""
