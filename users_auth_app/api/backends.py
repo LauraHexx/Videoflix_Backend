@@ -1,8 +1,7 @@
 from django.contrib.auth.backends import ModelBackend
 from django.core.mail.backends.smtp import EmailBackend
 from django.contrib.auth import get_user_model
-import smtplib
-import ssl
+
 
 User = get_user_model()
 
