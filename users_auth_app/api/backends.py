@@ -41,26 +41,39 @@ class UnsafeTLSBackend(EmailBackend):
         """
         if self.connection:
             return False
-
         try:
-            import smtplib
-            import ssl
-
-            self.connection = smtplib.SMTP(
-                self.host,
-                self.port,
-                timeout=self.timeout,
-            )
-
-            if self.use_tls:
-                context = ssl._create_unverified_context()
-                self.connection.starttls(context=context)
-
-            if self.username and self.password:
-                self.connection.login(self.username, self.password)
-
+            self.connection = self._create_smtp_connection()
+            self._start_tls_if_needed()
+            self._login_if_needed()
             return True
         except Exception:
             if self.fail_silently:
                 return False
             raise
+
+    def _create_smtp_connection(self):
+        """
+        Create and return an SMTP connection.
+        """
+        import smtplib
+        return smtplib.SMTP(
+            self.host,
+            self.port,
+            timeout=self.timeout,
+        )
+
+    def _start_tls_if_needed(self):
+        """
+        Start TLS with SSL verification disabled if required.
+        """
+        if self.use_tls:
+            import ssl
+            context = ssl._create_unverified_context()
+            self.connection.starttls(context=context)
+
+    def _login_if_needed(self):
+        """
+        Log in to the SMTP server if credentials are provided.
+        """
+        if self.username and self.password:
+            self.connection.login(self.username, self.password)
