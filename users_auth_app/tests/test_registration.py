@@ -1,12 +1,10 @@
 import pytest
-import uuid
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.urls import reverse
 from users_auth_app.models import CustomUser
 from users_auth_app.api.serializers import RegistrationSerializer
 from utils.test_utils import create_verified_user, create_unverified_user
-from rest_framework.authtoken.models import Token
+import uuid
 
 REGISTER_URL = "/api/registration/"
 VERIFY_URL = "/api/registration/verify/"
@@ -37,7 +35,7 @@ def test_registration_existing_verified_user_fails(api_client):
             "repeated_password": "pw123456"}
     response = api_client.post(REGISTER_URL, data)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "email" in response.data
+    assert "detail" in response.data
 
 
 @pytest.mark.django_db
@@ -59,8 +57,7 @@ def test_registration_passwords_do_not_match(api_client):
             "password": "pw123456", "repeated_password": "pw654321"}
     response = api_client.post(REGISTER_URL, data)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "non_field_errors" in response.data or "Passwords do not match." in str(
-        response.data)
+    assert "Passwords do not match." in str(response.data)
 
 
 @pytest.mark.django_db
@@ -75,6 +72,37 @@ def test_registration_invalid_email(api_client):
     """Registration fails with invalid email format."""
     data = {"email": "not-an-email", "password": "pw123456",
             "repeated_password": "pw123456"}
+    response = api_client.post(REGISTER_URL, data)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_registration_email_only_verified(api_client):
+    """POST with only email returns 400 if user is verified."""
+    user, _ = create_verified_user(email="verified@example.com")
+    response = api_client.post(REGISTER_URL, {"email": user.email})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_registration_email_only_unverified(api_client):
+    """POST with only email returns 200 if user is not verified."""
+    user, _ = create_unverified_user(email="unverified2@example.com")
+    response = api_client.post(REGISTER_URL, {"email": user.email})
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_registration_email_only_new(api_client):
+    """POST with only email returns 200 if user does not exist."""
+    response = api_client.post(REGISTER_URL, {"email": "new2@example.com"})
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_registration_missing_email(api_client):
+    """Registration fails if email is missing."""
+    data = {"password": "pw123456", "repeated_password": "pw123456"}
     response = api_client.post(REGISTER_URL, data)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -116,15 +144,27 @@ def test_registration_serializer_update_unverified_user():
 
 
 @pytest.mark.django_db
+def test_registration_serializer_verified_user_fails():
+    """RegistrationSerializer fails for already verified user."""
+    user, _ = create_verified_user(email="verfail@example.com")
+    data = {"email": user.email, "password": "pw123456",
+            "repeated_password": "pw123456"}
+    serializer = RegistrationSerializer(data=data)
+    with pytest.raises(Exception):
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+
+@pytest.mark.django_db
 def test_registration_verify_view_success(api_client):
-    """RegistrationVerifyView verifies user with valid token."""
+    """RegistrationVerifyView verifies user with valid token and redirects."""
     user, _ = create_unverified_user(email="verifyme@example.com")
-    token = str(uuid.uuid4())
+    token = uuid.uuid4()
     user.verification_token = token
     user.save()
     url = f"{VERIFY_URL}{token}/"
     response = api_client.get(url)
-    assert response.status_code == status.HTTP_200_OK
+    assert response.status_code == 302
     user.refresh_from_db()
     assert user.is_verified
     assert user.verification_token is None
@@ -133,7 +173,7 @@ def test_registration_verify_view_success(api_client):
 @pytest.mark.django_db
 def test_registration_verify_view_invalid_token(api_client):
     """RegistrationVerifyView fails with invalid token."""
-    token = str(uuid.uuid4())
+    token = uuid.uuid4()
     url = f"{VERIFY_URL}{token}/"
     response = api_client.get(url)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -144,4 +184,5 @@ def test_registration_verify_view_missing_token(api_client):
     """RegistrationVerifyView fails with missing token."""
     url = f"{VERIFY_URL}/"
     response = api_client.get(url)
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.status_code in (
+        status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST)

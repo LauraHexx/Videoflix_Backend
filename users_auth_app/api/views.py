@@ -5,10 +5,9 @@ from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import authenticate
 from django.shortcuts import redirect
-from django.http import HttpResponse
 from django.conf import settings
 import uuid
-from .serializers import RegistrationSerializer, LoginSerializer, UserVerifiedSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
+from .serializers import RegistrationSerializer, LoginSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer
 from ..models import CustomUser
 from users_auth_app.api.tasks import send_password_reset_email_task
 

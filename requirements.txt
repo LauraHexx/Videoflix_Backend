@@ -3,6 +3,7 @@ boto3==1.38.39
 botocore==1.38.39
 click==8.2.1
 colorama==0.4.6
+coverage==7.9.1
 Django==5.2.1
 django-cors-headers==4.7.0
 django-redis==5.4.0
@@ -14,6 +15,9 @@ jmespath==1.0.1
 packaging==25.0
 pillow==11.2.1
 psycopg2-binary==2.9.10
+pytest==8.4.0
+pytest-cov==6.2.1
+pytest-django==4.11.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.0
 redis==6.2.0

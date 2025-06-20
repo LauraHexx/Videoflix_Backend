@@ -58,11 +58,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
-class UserVerifiedSerializer(serializers.Serializer):
-    """Serializer for verifying if a user with given email is verified."""
-    email = serializers.EmailField()
-
-
 class LoginSerializer(serializers.Serializer):
     """Validate login credentials (email and password)."""
     email = serializers.EmailField()
@@ -70,10 +65,12 @@ class LoginSerializer(serializers.Serializer):
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
+    """Validate email for password reset request."""
     email = serializers.EmailField()
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
+    """Validate token and passwords for password reset confirmation."""
     token = serializers.UUIDField()
     password = serializers.CharField(write_only=True)
     password_confirmed = serializers.CharField(write_only=True)
