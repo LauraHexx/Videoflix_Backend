@@ -22,9 +22,32 @@ def generate_presigned_url(s3_key, expiration=3600):
     """Generate a presigned URL for S3 object."""
     try:
         s3_client = get_s3_client()
+
+        # Determine content type based on file extension
+        content_type = 'application/octet-stream'  # default
+        if s3_key.lower().endswith('.mp4'):
+            content_type = 'video/mp4'
+        elif s3_key.lower().endswith('.webm'):
+            content_type = 'video/webm'
+        elif s3_key.lower().endswith('.ogg'):
+            content_type = 'video/ogg'
+        elif s3_key.lower().endswith('.mov'):
+            content_type = 'video/quicktime'
+        elif s3_key.lower().endswith('.avi'):
+            content_type = 'video/x-msvideo'
+        elif s3_key.lower().endswith(('.jpg', '.jpeg')):
+            content_type = 'image/jpeg'
+        elif s3_key.lower().endswith('.png'):
+            content_type = 'image/png'
+
         response = s3_client.generate_presigned_url(
             'get_object',
-            Params={'Bucket': settings.AWS_STORAGE_BUCKET_NAME, 'Key': s3_key},
+            Params={
+                'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                'Key': s3_key,
+                'ResponseContentDisposition': 'inline',
+                'ResponseContentType': content_type
+            },
             ExpiresIn=expiration
         )
         return response
