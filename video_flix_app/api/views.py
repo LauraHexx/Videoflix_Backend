@@ -22,11 +22,19 @@ class VideoViewSet(viewsets.ModelViewSet):
 
 
 class UserWatchHistoryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing user-specific video watch history.
+    """
+
     queryset = UserWatchHistory.objects.all()
     serializer_class = UserWatchHistorySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Returns only the watch history entries of the current user,
+        optionally filtered by video ID, sorted by last update (newest first).
+        """
         queryset = self.queryset.filter(user=self.request.user)
         video_id = self.request.query_params.get("video")
         if video_id:
@@ -34,6 +42,10 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-updated_at')
 
     def perform_create(self, serializer):
+        """
+        Sets the current user automatically when creating a new entry.
+        Raises a validation error if an entry for this user and video already exists.
+        """
         try:
             serializer.save(user=self.request.user)
         except IntegrityError:
@@ -41,6 +53,9 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
                 "You already have a watch history entry for this video.")
 
     def destroy(self, request, *args, **kwargs):
+        """
+        Allows only admin users to delete watch history entries.
+        """
         if not request.user.is_staff:
             raise PermissionDenied("Only admins can delete watch history.")
         return super().destroy(request, *args, **kwargs)

@@ -94,6 +94,10 @@ class VideoSerializer(serializers.ModelSerializer):
 
 
 class UserWatchHistorySerializer(serializers.ModelSerializer):
+    """
+    Serializer for user-specific video watch history.
+    Handles creation, update, and display of progress for each user and video.
+    """
     class Meta:
         model = UserWatchHistory
         fields = ['id', 'user', 'video', 'progress', 'updated_at']
