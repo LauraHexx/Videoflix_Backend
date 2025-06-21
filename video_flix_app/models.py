@@ -31,9 +31,10 @@ class UserWatchHistory(models.Model):
                              on_delete=models.CASCADE)
     video = models.ForeignKey(Video, on_delete=models.CASCADE)
     progress = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.username} watched {self.video.title} {self.progress}%"
+        return f"{self.user.email} watched {self.video.title} up to {self.progress} seconds"
 
     class Meta:
         constraints = [

@@ -44,5 +44,5 @@ class VideoSerializer(serializers.ModelSerializer):
 class UserWatchHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = UserWatchHistory
-        fields = ['user', 'video', 'progress']
-        read_only_fields = ['user', 'video']
+        fields = ['id', 'user', 'video', 'progress', 'updated_at']
+        read_only_fields = ['id', 'user']
