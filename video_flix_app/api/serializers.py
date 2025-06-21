@@ -37,8 +37,8 @@ class VideoResolutionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VideoResolution
-        fields = ['height', 'file', 'file_url']
-        read_only_fields = ['height', 'file']
+        fields = ['height', 'file_url']
+        read_only_fields = ['height']
 
     def get_file_url(self, obj):
         """Generate presigned S3 URL for video file."""
