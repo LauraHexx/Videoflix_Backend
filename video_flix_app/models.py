@@ -5,6 +5,8 @@ from django.conf import settings
 class Video(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
+    duration = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Duration in seconds")
     video_file = models.FileField(upload_to="videos/")
     thumbnail = models.CharField(
         max_length=500, null=True, blank=True)  # S3 key for thumbnail

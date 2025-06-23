@@ -1,5 +1,19 @@
 from django.contrib import admin
-from .models import UserWatchHistory
+from .models import UserWatchHistory, Video
+
+
+class VideoAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
+        "title",
+        "description",
+        "duration",
+        "video_file",
+        "thumbnail",
+        "created_at",
+        "updated_at",
+        "genre",
+    ]
 
 
 class UserWatchHistoryAdmin(admin.ModelAdmin):
@@ -12,4 +26,5 @@ class UserWatchHistoryAdmin(admin.ModelAdmin):
     ]
 
 
+admin.site.register(Video, VideoAdmin)
 admin.site.register(UserWatchHistory, UserWatchHistoryAdmin)

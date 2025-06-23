@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from django.conf import settings
 import boto3
+import os
 from botocore.exceptions import ClientError
 from ..models import Video, UserWatchHistory, VideoResolution
+from moviepy.editor import VideoFileClip
 
 
 def get_s3_client():
@@ -77,12 +79,12 @@ class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = [
-            "id", "title", "description", "video_file",
+            "id", "title", "description", "duration", "video_file",
             "genre", "thumbnail", "thumbnail_url", "resolutions",
             "created_at", "updated_at",
         ]
         read_only_fields = [
-            "id", "created_at",
+            "id", "created_at", "duration",
             "thumbnail", "resolutions", "thumbnail_url"
         ]
 
@@ -91,6 +93,33 @@ class VideoSerializer(serializers.ModelSerializer):
         if obj.thumbnail:
             return generate_presigned_url(obj.thumbnail)
         return None
+
+    def _set_duration(self, video_instance):
+        """Set duration from video file using moviepy."""
+        if video_instance.video_file and hasattr(video_instance.video_file, 'path'):
+            file_path = video_instance.video_file.path
+            print("Video file path:", file_path)  # Debug-Ausgabe
+            if os.path.exists(file_path):
+                try:
+                    clip = VideoFileClip(file_path)
+                    video_instance.duration = int(clip.duration)
+                except Exception as e:
+                    print("MoviePy error:", e)  # Debug-Ausgabe
+                    video_instance.duration = None
+            else:
+                print("File does not exist:", file_path)
+
+    def create(self, validated_data):
+        video = super().create(validated_data)
+        self._set_duration(video)
+        video.save()
+        return video
+
+    def update(self, instance, validated_data):
+        video = super().update(instance, validated_data)
+        self._set_duration(video)
+        video.save()
+        return video
 
 
 class UserWatchHistorySerializer(serializers.ModelSerializer):

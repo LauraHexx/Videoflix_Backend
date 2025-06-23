@@ -3,6 +3,9 @@ import subprocess
 import tempfile
 import django_rq
 import boto3
+import tempfile
+from moviepy.editor import VideoFileClip
+
 from botocore.exceptions import NoCredentialsError, ClientError
 from django.conf import settings
 from django_rq import job
@@ -44,6 +47,45 @@ def upload_to_s3(local_path, s3_key):
     except (NoCredentialsError, ClientError) as e:
         print(f"Error uploading to S3: {e}")
         return False
+
+
+def get_temp_file(suffix):
+    """Create a temporary file and return its path."""
+    return tempfile.NamedTemporaryFile(suffix=suffix, delete=False).name
+
+
+def cleanup_files(paths):
+    """Delete files if they exist."""
+    for path in paths:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def get_video_duration(path):
+    """Return video duration in seconds."""
+    clip = VideoFileClip(path)
+    return int(clip.duration)
+
+
+def update_video_duration(video_id, duration):
+    """Update duration field in Video model."""
+    Video.objects.filter(id=video_id).update(duration=duration)
+
+
+def set_video_duration(video_s3_key, video_id=None):
+    """Download video, get duration, and update Video model."""
+    temp_path = get_temp_file('.mp4')
+    try:
+        if not download_from_s3(video_s3_key, temp_path):
+            return None
+        if video_id:
+            duration = get_video_duration(temp_path)
+            update_video_duration(video_id, duration)
+            return duration
+    except Exception:
+        return None
+    finally:
+        cleanup_files([temp_path])
 
 
 @job('default')
@@ -143,6 +185,8 @@ def transcode_video(video_s3_key, target_height, video_id=None):
 @job('default')
 def process_video_pipeline(video_s3_key, video_id=None):
     """Process video pipeline: generate thumbnail and queue transcoding jobs."""
+
+    set_video_duration(video_s3_key, video_id)
 
     # Generate thumbnail
     thumbnail_s3_key = generate_thumbnail(video_s3_key)
