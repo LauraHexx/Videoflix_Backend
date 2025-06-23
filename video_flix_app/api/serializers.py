@@ -104,3 +104,14 @@ class UserWatchHistorySerializer(serializers.ModelSerializer):
         model = UserWatchHistory
         fields = ['id', 'user', 'video', 'progress', 'updated_at']
         read_only_fields = ['id', 'user']
+
+    def validate(self, data):
+        """
+        Ensure progress does not exceed video duration.
+        """
+        video = data.get('video') or self.instance.video
+        progress = data.get('progress', getattr(self.instance, 'progress', 0))
+        if video.duration is not None and progress > video.duration:
+            raise serializers.ValidationError(
+                "Progress cannot exceed video duration.")
+        return data
