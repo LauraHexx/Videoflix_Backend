@@ -94,33 +94,6 @@ class VideoSerializer(serializers.ModelSerializer):
             return generate_presigned_url(obj.thumbnail)
         return None
 
-    def _set_duration(self, video_instance):
-        """Set duration from video file using moviepy."""
-        if video_instance.video_file and hasattr(video_instance.video_file, 'path'):
-            file_path = video_instance.video_file.path
-            print("Video file path:", file_path)  # Debug-Ausgabe
-            if os.path.exists(file_path):
-                try:
-                    clip = VideoFileClip(file_path)
-                    video_instance.duration = int(clip.duration)
-                except Exception as e:
-                    print("MoviePy error:", e)  # Debug-Ausgabe
-                    video_instance.duration = None
-            else:
-                print("File does not exist:", file_path)
-
-    def create(self, validated_data):
-        video = super().create(validated_data)
-        self._set_duration(video)
-        video.save()
-        return video
-
-    def update(self, instance, validated_data):
-        video = super().update(instance, validated_data)
-        self._set_duration(video)
-        video.save()
-        return video
-
 
 class UserWatchHistorySerializer(serializers.ModelSerializer):
     """
