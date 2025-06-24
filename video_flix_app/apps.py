@@ -6,4 +6,4 @@ class VideoFlixAppConfig(AppConfig):
     name = 'video_flix_app'
 
     def ready(self):
-        import video_flix_app.signals
+        import video_flix_app.api.signals

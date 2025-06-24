@@ -50,6 +50,19 @@ def upload_to_s3(local_path, s3_key):
         return False
 
 
+def delete_s3_object(s3_client, key):
+    """
+    Deletes a single object from S3 using the given key.
+    """
+    try:
+        s3_client.delete_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=key
+        )
+    except Exception as e:
+        print(f"Error deleting object {key}: {e}")
+
+
 def get_temp_file(suffix):
     """Create a temporary file and return its path."""
     return tempfile.NamedTemporaryFile(suffix=suffix, delete=False).name
@@ -216,7 +229,6 @@ def create_signed_master_playlist(output_dir, base_name, heights):
     """
     Create a master HLS playlist with signed URLs for each resolution playlist.
     """
-
     master_path = os.path.join(output_dir, f"{base_name}_master.m3u8")
     with open(master_path, "w") as f:
         f.write("#EXTM3U\n")
@@ -296,3 +308,58 @@ def process_video_pipeline(video_s3_key, video_id=None):
         'thumbnail': thumbnail_s3_key,
         'queued': 'hls'
     }
+
+
+# DELETE#################################################################
+
+def extract_hls_prefix(hls_master_key):
+    """
+    Extracts the S3 prefix (folder) from the HLS master playlist key.
+    """
+    return '/'.join(hls_master_key.split('/')[:-1]) + '/'
+
+
+def delete_hls_directory(s3_client, hls_master_key):
+    """
+    Delete all HLS files for a given master playlist from S3.
+    """
+    prefix = extract_hls_prefix(hls_master_key)
+    try:
+        response = s3_client.list_objects_v2(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Prefix=prefix
+        )
+        for obj in response.get('Contents', []):
+            delete_s3_object(s3_client, obj['Key'])
+    except Exception as e:
+        print(f"Error deleting HLS files: {e}")
+
+
+def delete_video_file(s3_client, video_key):
+    """
+    Delete original video file from S3 (e.g. videos/abc.mp4).
+    """
+    try:
+        s3_client.delete_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=video_key
+        )
+    except Exception as e:
+        print(f"Error deleting video file: {e}")
+
+
+@job('default')
+def delete_video_assets_from_s3(hls_master_key, thumbnail_key, video_file_key):
+    """
+    Orchestrates deletion of all video-related assets (HLS, thumbnail, video file).
+    """
+    s3_client = get_s3_client()
+
+    if hls_master_key:
+        delete_hls_directory(s3_client, hls_master_key)
+
+    if thumbnail_key:
+        delete_s3_object(s3_client, thumbnail_key)
+
+    if video_file_key:
+        delete_video_file(s3_client, video_file_key)
