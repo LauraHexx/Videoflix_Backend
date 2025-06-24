@@ -10,22 +10,14 @@ class Video(models.Model):
     video_file = models.FileField(upload_to="videos/")
     thumbnail = models.CharField(
         max_length=500, null=True, blank=True)  # S3 key for thumbnail
+    hls_playlist = models.CharField(
+        max_length=500, null=True, blank=True)  # S3 key for HLS master playlist
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     genre = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return self.title
-
-
-class VideoResolution(models.Model):
-    video = models.ForeignKey(
-        Video, related_name='resolutions', on_delete=models.CASCADE)
-    height = models.PositiveIntegerField()
-    file = models.CharField(max_length=500)  # S3 key for video file
-
-    def __str__(self):
-        return f"{self.video.title} - {self.height}p"
 
 
 class UserWatchHistory(models.Model):

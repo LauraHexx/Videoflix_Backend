@@ -9,7 +9,8 @@ from moviepy.editor import VideoFileClip
 from botocore.exceptions import NoCredentialsError, ClientError
 from django.conf import settings
 from django_rq import job
-from video_flix_app.models import Video, VideoResolution
+from video_flix_app.models import Video
+from video_flix_app.api.serializers import generate_presigned_url
 
 
 def get_s3_client():
@@ -130,79 +131,158 @@ def generate_thumbnail(video_s3_key):
                 os.unlink(temp_file)
 
 
-@job('default')
-def transcode_video(video_s3_key, target_height, video_id=None):
-    """Transcode video from S3/MinIO and upload result back."""
-    base_name, ext = os.path.splitext(os.path.basename(video_s3_key))
+def transcode_to_hls(input_path, output_dir, base_name, height):
+    """
+    Transcode video to HLS format (.m3u8 + .ts segments) for a specific height.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, f"{base_name}_{height}p.m3u8")
 
-    # Create temporary files
+    bitrate_map = {
+        120:  100,
+        360:  600,     # SD
+        720:  1800,    # HD ready
+        1080: 3500     # Full HD
+    }
+
+    maxrate_map = {
+        120:  150,     # ca. 1.5x bitrate
+        360:  900,     # ca. 1.5x bitrate
+        720:  2500,    # ca. 1.4x bitrate
+        1080: 5000     # ca. 1.4x bitrate
+    }
+
+    bufsize_map = {
+        120:  300,     # ca. 2x maxrate
+        360:  1800,
+        720:  5000,
+        1080: 10000
+    }
+
+    bitrate = bitrate_map.get(height, 1000)
+    maxrate = maxrate_map.get(height, 1200)
+    bufsize = bufsize_map.get(height, 2000)
+
+    subprocess.run([
+        "ffmpeg", "-i", input_path,
+        "-vf", f"scale=-2:{height}",
+        "-c:a", "aac",
+        "-ar", "48000",
+        "-b:a", "128k",
+        "-c:v", "h264",
+        "-profile:v", "main",
+        "-crf", "20",
+        "-sc_threshold", "0",
+        "-g", "48",
+        "-keyint_min", "48",
+        "-hls_time", "10",
+        "-hls_playlist_type", "vod",
+        "-b:v", f"{bitrate}k",
+        "-maxrate", f"{maxrate}k",
+        "-bufsize", f"{bufsize}k",
+        "-hls_segment_filename", os.path.join(output_dir,
+                                              f"{base_name}_{height}p_%03d.ts"),
+        output_path
+    ], check=True)
+    return output_path
+
+
+def create_master_playlist(output_dir, base_name, heights):
+    """
+    Create a master HLS playlist referencing all variant playlists.
+    """
+    master_path = os.path.join(output_dir, f"{base_name}_master.m3u8")
+    with open(master_path, "w") as f:
+        f.write("#EXTM3U\n")
+        for h in heights:
+            f.write(
+                f'#EXT-X-STREAM-INF:BANDWIDTH={h*1000*2},RESOLUTION=1920x{h}\n')
+            f.write(f"{base_name}_{h}p.m3u8\n")
+    return master_path
+
+
+def sign_ts_segment_urls(playlist_path, base_name):
+    """
+    Replace all .ts segment paths in a playlist with signed S3 URLs.
+    """
+
+    with open(playlist_path, "r") as f:
+        lines = f.readlines()
+
+    signed_lines = []
+    for line in lines:
+        if line.strip().endswith(".ts"):
+            s3_key = f"hls/{base_name}/{line.strip()}"
+            signed_url = generate_presigned_url(s3_key)
+            signed_lines.append(signed_url + "\n")
+        else:
+            signed_lines.append(line)
+
+    with open(playlist_path, "w") as f:
+        f.writelines(signed_lines)
+
+
+def create_signed_master_playlist(output_dir, base_name, heights):
+    """
+    Create a master HLS playlist with signed URLs for each resolution playlist.
+    """
+
+    master_path = os.path.join(output_dir, f"{base_name}_master.m3u8")
+    with open(master_path, "w") as f:
+        f.write("#EXTM3U\n")
+        for h in heights:
+            s3_key = f"hls/{base_name}/{base_name}_{h}p.m3u8"
+            signed_url = generate_presigned_url(s3_key)
+            f.write(
+                f'#EXT-X-STREAM-INF:BANDWIDTH={h*1000*2},RESOLUTION=1920x{h}\n')
+            f.write(f"{signed_url}\n")
+    return master_path
+
+
+@job('default')
+def transcode_video_to_hls(video_s3_key, video_id=None):
+    """
+    Transcode video to HLS (120p, 360p, 720p, 1080p), inject signed URLs, and upload to S3.
+    """
+    base_name, ext = os.path.splitext(os.path.basename(video_s3_key))
+    heights = [120, 360, 720, 1080]
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as temp_input:
         temp_input_path = temp_input.name
-
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as temp_output:
-        temp_output_path = temp_output.name
-
-    try:
-        # Download original video from S3/MinIO
-        if not download_from_s3(video_s3_key, temp_input_path):
-            raise Exception(
-                f"Failed to download video from S3: {video_s3_key}")
-
-        # Transcode video
-        subprocess.run([
-            'ffmpeg', '-i', temp_input_path,
-            '-vf', f"scale=-2:{target_height}",
-            '-c:a', 'copy',
-            '-y',  # Overwrite output file
-            temp_output_path
-        ], check=True)
-
-        # Upload transcoded video to S3/MinIO
-        output_filename = f"{base_name}_{target_height}p{ext}"
-        output_s3_key = f"videos/{target_height}p/{output_filename}"
-
-        if not upload_to_s3(temp_output_path, output_s3_key):
-            raise Exception(
-                f"Failed to upload transcoded video to S3: {output_s3_key}")
-
-        # Save video resolution to database
-        if video_id:
-            VideoResolution.objects.create(
-                video_id=video_id,
-                height=target_height,
-                file=output_s3_key
-            )
-
-        return output_s3_key
-
-    finally:
-        # Clean up temporary files
-        for temp_file in [temp_input_path, temp_output_path]:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        try:
+            if not download_from_s3(video_s3_key, temp_input_path):
+                raise Exception(
+                    f"Failed to download video from S3: {video_s3_key}")
+            for h in heights:
+                transcode_to_hls(temp_input_path, temp_dir, base_name, h)
+            for h in heights:
+                sub_path = os.path.join(temp_dir, f"{base_name}_{h}p.m3u8")
+                sign_ts_segment_urls(sub_path, base_name)
+            master_path = create_signed_master_playlist(
+                temp_dir, base_name, heights)
+            for fname in os.listdir(temp_dir):
+                fpath = os.path.join(temp_dir, fname)
+                s3_key = f"hls/{base_name}/{fname}"
+                upload_to_s3(fpath, s3_key)
+            if video_id:
+                Video.objects.filter(id=video_id).update(
+                    hls_playlist=f"hls/{base_name}/{base_name}_master.m3u8"
+                )
+            return f"hls/{base_name}/{base_name}_master.m3u8"
+        finally:
+            cleanup_files([temp_input_path])
 
 
 @job('default')
 def process_video_pipeline(video_s3_key, video_id=None):
-    """Process video pipeline: generate thumbnail and queue transcoding jobs."""
-
+    """Process video pipeline: generate thumbnail and queue HLS transcoding job."""
     set_video_duration(video_s3_key, video_id)
-
-    # Generate thumbnail
     thumbnail_s3_key = generate_thumbnail(video_s3_key)
-
-    # Update video model with thumbnail
     if video_id:
         Video.objects.filter(id=video_id).update(thumbnail=thumbnail_s3_key)
-
-    # Queue transcoding jobs
-    target_heights = [120, 360, 720, 1080]
     queue = django_rq.get_queue('default')
-
-    for height in target_heights:
-        queue.enqueue(transcode_video, video_s3_key, height, video_id)
-
+    queue.enqueue(transcode_video_to_hls, video_s3_key, video_id)
     return {
         'thumbnail': thumbnail_s3_key,
-        'queued_resolutions': target_heights
+        'queued': 'hls'
     }

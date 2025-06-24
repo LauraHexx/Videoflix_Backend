@@ -1,10 +1,8 @@
 from rest_framework import serializers
 from django.conf import settings
 import boto3
-import os
 from botocore.exceptions import ClientError
-from ..models import Video, UserWatchHistory, VideoResolution
-from moviepy.editor import VideoFileClip
+from ..models import Video, UserWatchHistory
 
 
 def get_s3_client():
@@ -41,6 +39,10 @@ def generate_presigned_url(s3_key, expiration=3600):
             content_type = 'image/jpeg'
         elif s3_key.lower().endswith('.png'):
             content_type = 'image/png'
+        elif s3_key.lower().endswith('.m3u8'):
+            content_type = 'application/vnd.apple.mpegurl'
+        elif s3_key.lower().endswith('.ts'):
+            content_type = 'video/mp2t'
 
         response = s3_client.generate_presigned_url(
             'get_object',
@@ -57,41 +59,38 @@ def generate_presigned_url(s3_key, expiration=3600):
         return None
 
 
-class VideoResolutionSerializer(serializers.ModelSerializer):
-    file_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = VideoResolution
-        fields = ['height', 'file_url']
-        read_only_fields = ['height']
-
-    def get_file_url(self, obj):
-        """Generate presigned S3 URL for video file."""
-        if obj.file:
-            return generate_presigned_url(obj.file)
-        return None
-
-
 class VideoSerializer(serializers.ModelSerializer):
-    resolutions = VideoResolutionSerializer(many=True, read_only=True)
     thumbnail_url = serializers.SerializerMethodField()
+    hls_playlist_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Video
         fields = [
             "id", "title", "description", "duration", "video_file",
-            "genre", "thumbnail", "thumbnail_url", "resolutions",
+            "genre", "thumbnail", "thumbnail_url", "hls_playlist", "hls_playlist_url",
             "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "created_at", "duration",
-            "thumbnail", "resolutions", "thumbnail_url"
+            "thumbnail", "hls_playlist", "thumbnail_url", "hls_playlist_url"
         ]
 
     def get_thumbnail_url(self, obj):
-        """Generate presigned S3 URL for thumbnail."""
+        """
+        Return a presigned URL for the video's thumbnail image.
+        If no thumbnail is set, return None.
+        """
         if obj.thumbnail:
             return generate_presigned_url(obj.thumbnail)
+        return None
+
+    def get_hls_playlist_url(self, obj):
+        """
+        Return a presigned URL for the HLS master playlist of the video.
+        If no playlist is set, return None.
+        """
+        if obj.hls_playlist:
+            return generate_presigned_url(obj.hls_playlist)
         return None
 
 

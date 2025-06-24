@@ -10,6 +10,7 @@ class VideoAdmin(admin.ModelAdmin):
         "duration",
         "video_file",
         "thumbnail",
+        "hls_playlist",
         "created_at",
         "updated_at",
         "genre",

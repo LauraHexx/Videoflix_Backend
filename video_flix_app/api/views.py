@@ -7,6 +7,9 @@ from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 
 from rest_framework.exceptions import ValidationError
 from django.db import IntegrityError
@@ -16,6 +19,10 @@ from .serializers import VideoSerializer, UserWatchHistorySerializer
 
 
 class VideoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing video objects.
+    Provides full CRUD access to all videos (no authentication required).
+    """
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [AllowAny]
