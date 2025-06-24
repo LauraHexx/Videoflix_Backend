@@ -131,59 +131,49 @@ def generate_thumbnail(video_s3_key):
                 os.unlink(temp_file)
 
 
-def transcode_to_hls(input_path, output_dir, base_name, height):
-    """
-    Transcode video to HLS format (.m3u8 + .ts segments) for a specific height.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"{base_name}_{height}p.m3u8")
+def get_output_path(output_dir, base_name, height):
+    """Return output path for HLS playlist for the given height."""
+    return os.path.join(output_dir, f"{base_name}_{height}p.m3u8")
 
-    bitrate_map = {
-        120:  100,
-        360:  600,     # SD
-        720:  1800,    # HD ready
-        1080: 3500     # Full HD
-    }
 
-    maxrate_map = {
-        120:  150,     # ca. 1.5x bitrate
-        360:  900,     # ca. 1.5x bitrate
-        720:  2500,    # ca. 1.4x bitrate
-        1080: 5000     # ca. 1.4x bitrate
-    }
-
-    bufsize_map = {
-        120:  300,     # ca. 2x maxrate
-        360:  1800,
-        720:  5000,
-        1080: 10000
-    }
-
+def get_encoding_params(height):
+    """Return bitrate, maxrate and bufsize for the given height."""
+    bitrate_map = {120: 100, 360: 600, 720: 1800, 1080: 3500}
+    maxrate_map = {120: 150, 360: 900, 720: 2500, 1080: 5000}
+    bufsize_map = {120: 300, 360: 1800, 720: 5000, 1080: 10000}
     bitrate = bitrate_map.get(height, 1000)
     maxrate = maxrate_map.get(height, 1200)
     bufsize = bufsize_map.get(height, 2000)
+    return bitrate, maxrate, bufsize
 
+
+def run_ffmpeg_hls(input_path, output_path, output_dir, base_name, height,
+                   bitrate, maxrate, bufsize):
+    """Run ffmpeg command to generate HLS stream for given resolution."""
+    segment_template = os.path.join(
+        output_dir, f"{base_name}_{height}p_%03d.ts")
     subprocess.run([
         "ffmpeg", "-i", input_path,
         "-vf", f"scale=-2:{height}",
-        "-c:a", "aac",
-        "-ar", "48000",
-        "-b:a", "128k",
-        "-c:v", "h264",
-        "-profile:v", "main",
-        "-crf", "20",
-        "-sc_threshold", "0",
-        "-g", "48",
-        "-keyint_min", "48",
-        "-hls_time", "10",
-        "-hls_playlist_type", "vod",
-        "-b:v", f"{bitrate}k",
-        "-maxrate", f"{maxrate}k",
-        "-bufsize", f"{bufsize}k",
-        "-hls_segment_filename", os.path.join(output_dir,
-                                              f"{base_name}_{height}p_%03d.ts"),
+        "-c:a", "aac", "-ar", "48000", "-b:a", "128k",
+        "-c:v", "h264", "-profile:v", "main", "-crf", "20",
+        "-sc_threshold", "0", "-g", "48", "-keyint_min", "48",
+        "-hls_time", "10", "-hls_playlist_type", "vod",
+        "-b:v", f"{bitrate}k", "-maxrate", f"{maxrate}k", "-bufsize", f"{bufsize}k",
+        "-hls_segment_filename", segment_template,
         output_path
     ], check=True)
+
+
+def transcode_to_hls(input_path, output_dir, base_name, height):
+    """
+    Transcode input video to HLS (.m3u8 + .ts) for one resolution height.
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = get_output_path(output_dir, base_name, height)
+    bitrate, maxrate, bufsize = get_encoding_params(height)
+    run_ffmpeg_hls(input_path, output_path, output_dir, base_name, height,
+                   bitrate, maxrate, bufsize)
     return output_path
 
 
@@ -239,36 +229,56 @@ def create_signed_master_playlist(output_dir, base_name, heights):
     return master_path
 
 
+def transcode_all_heights(input_path, output_dir, base_name, heights):
+    """Transcode video to HLS for all requested heights."""
+    for h in heights:
+        transcode_to_hls(input_path, output_dir, base_name, h)
+
+
+def sign_all_variant_playlists(output_dir, base_name, heights):
+    """Sign all variant .m3u8 playlists with temporary URLs."""
+    for h in heights:
+        path = os.path.join(output_dir, f"{base_name}_{h}p.m3u8")
+        sign_ts_segment_urls(path, base_name)
+
+
+def upload_hls_to_s3(directory, base_name):
+    """Upload all HLS files in directory to S3."""
+    for fname in os.listdir(directory):
+        fpath = os.path.join(directory, fname)
+        s3_key = f"hls/{base_name}/{fname}"
+        upload_to_s3(fpath, s3_key)
+
+
+def update_video_hls_field(video_id, base_name):
+    """Update the hls_playlist field in the Video model."""
+    if video_id:
+        Video.objects.filter(id=video_id).update(
+            hls_playlist=f"hls/{base_name}/{base_name}_master.m3u8"
+        )
+
+
 @job('default')
 def transcode_video_to_hls(video_s3_key, video_id=None):
     """
-    Transcode video to HLS (120p, 360p, 720p, 1080p), inject signed URLs, and upload to S3.
+    Orchestrates HLS transcoding: download, transcode, sign URLs, upload and update model.
     """
     base_name, ext = os.path.splitext(os.path.basename(video_s3_key))
     heights = [120, 360, 720, 1080]
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as temp_input:
-        temp_input_path = temp_input.name
+    temp_input_path = get_temp_file(ext)
+
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             if not download_from_s3(video_s3_key, temp_input_path):
-                raise Exception(
-                    f"Failed to download video from S3: {video_s3_key}")
-            for h in heights:
-                transcode_to_hls(temp_input_path, temp_dir, base_name, h)
-            for h in heights:
-                sub_path = os.path.join(temp_dir, f"{base_name}_{h}p.m3u8")
-                sign_ts_segment_urls(sub_path, base_name)
+                raise Exception(f"Failed to download video: {video_s3_key}")
+            transcode_all_heights(
+                temp_input_path, temp_dir, base_name, heights)
+            sign_all_variant_playlists(temp_dir, base_name, heights)
             master_path = create_signed_master_playlist(
                 temp_dir, base_name, heights)
-            for fname in os.listdir(temp_dir):
-                fpath = os.path.join(temp_dir, fname)
-                s3_key = f"hls/{base_name}/{fname}"
-                upload_to_s3(fpath, s3_key)
-            if video_id:
-                Video.objects.filter(id=video_id).update(
-                    hls_playlist=f"hls/{base_name}/{base_name}_master.m3u8"
-                )
-            return f"hls/{base_name}/{base_name}_master.m3u8"
+            upload_hls_to_s3(temp_dir, base_name)
+            update_video_hls_field(video_id, base_name)
+            return master_path
         finally:
             cleanup_files([temp_input_path])
 
