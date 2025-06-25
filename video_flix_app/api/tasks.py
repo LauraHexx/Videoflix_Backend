@@ -4,6 +4,7 @@ import tempfile
 import django_rq
 import boto3
 import tempfile
+import uuid
 from moviepy.editor import VideoFileClip
 
 from botocore.exceptions import NoCredentialsError, ClientError
@@ -103,9 +104,8 @@ def set_video_duration(video_s3_key, video_id=None):
 
 
 @job('default')
-def generate_thumbnail(video_s3_key):
+def generate_thumbnail(video_s3_key, base_name):
     """Generate thumbnail from video stored in S3/MinIO."""
-    base_name = os.path.splitext(os.path.basename(video_s3_key))[0]
 
     # Create temporary files
     with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_video:
@@ -271,11 +271,11 @@ def update_video_hls_field(video_id, base_name):
 
 
 @job('default')
-def transcode_video_to_hls(video_s3_key, video_id=None):
+def transcode_video_to_hls(video_s3_key, video_id, base_name):
     """
     Orchestrates HLS transcoding: download, transcode, sign URLs, upload and update model.
     """
-    base_name, ext = os.path.splitext(os.path.basename(video_s3_key))
+    ext = os.path.splitext(video_s3_key)[1]
     heights = [120, 360, 720, 1080]
     temp_input_path = get_temp_file(ext)
 
@@ -299,11 +299,13 @@ def transcode_video_to_hls(video_s3_key, video_id=None):
 def process_video_pipeline(video_s3_key, video_id=None):
     """Process video pipeline: generate thumbnail and queue HLS transcoding job."""
     set_video_duration(video_s3_key, video_id)
-    thumbnail_s3_key = generate_thumbnail(video_s3_key)
+    basename_from_file = os.path.splitext(os.path.basename(video_s3_key))[0]
+    base_name = f"{video_id}_{basename_from_file}"
+    thumbnail_s3_key = generate_thumbnail(video_s3_key, base_name)
     if video_id:
         Video.objects.filter(id=video_id).update(thumbnail=thumbnail_s3_key)
     queue = django_rq.get_queue('default')
-    queue.enqueue(transcode_video_to_hls, video_s3_key, video_id)
+    queue.enqueue(transcode_video_to_hls, video_s3_key, video_id, base_name)
     return {
         'thumbnail': thumbnail_s3_key,
         'queued': 'hls'
