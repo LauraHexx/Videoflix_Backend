@@ -55,6 +55,20 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(video_id=video_id)
         return queryset.order_by('-updated_at')
 
+    def get_queryset(self):
+        """
+        Return queryset filtered by current user unless staff.
+        Optionally filter by video ID and order by last update descending.
+        """
+        user = self.request.user
+        queryset = self.queryset
+        if not user.is_staff:
+            queryset = queryset.filter(user=user)
+        video_id = self.request.query_params.get("video")
+        if video_id:
+            queryset = queryset.filter(video_id=video_id)
+        return queryset.order_by('-updated_at')
+
     def perform_create(self, serializer):
         """
         Sets the current user automatically when creating a new entry.
