@@ -296,23 +296,27 @@ def transcode_video_to_hls(video_s3_key, video_id, base_name):
 
 
 @job('default')
-def process_video_pipeline(video_s3_key, video_id=None):
-    """Process video pipeline: generate thumbnail and queue HLS transcoding job."""
-    set_video_duration(video_s3_key, video_id)
-    basename_from_file = os.path.splitext(os.path.basename(video_s3_key))[0]
-    base_name = f"{video_id}_{basename_from_file}"
+def generate_thumbnail_and_save(video_s3_key, video_id, base_name):
+    """Wrapper for thumbnail generation with DB update."""
     thumbnail_s3_key = generate_thumbnail(video_s3_key, base_name)
     if video_id:
         Video.objects.filter(id=video_id).update(thumbnail=thumbnail_s3_key)
-    queue = django_rq.get_queue('default')
-    queue.enqueue(transcode_video_to_hls, video_s3_key, video_id, base_name)
-    return {
-        'thumbnail': thumbnail_s3_key,
-        'queued': 'hls'
-    }
 
+
+@job('default')
+def process_video_pipeline(video_s3_key, video_id=None):
+    """Enqueue both thumbnail generation and HLS transcoding for the given video."""
+    set_video_duration(video_s3_key, video_id)
+    base_name = os.path.splitext(os.path.basename(video_s3_key))[0]
+    queue = django_rq.get_queue('default')
+    queue.enqueue(generate_thumbnail_and_save,
+                  video_s3_key, video_id, base_name)
+    queue.enqueue(transcode_video_to_hls, video_s3_key, video_id, base_name)
+
+    return {"queued": "thumbnail + hls"}
 
 # DELETE#################################################################
+
 
 def extract_hls_prefix(hls_master_key):
     """
