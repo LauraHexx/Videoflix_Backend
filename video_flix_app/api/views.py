@@ -1,15 +1,11 @@
-import os
-import mimetypes
-
-from django.http import FileResponse, HttpResponseNotFound
-from django.conf import settings
-
+from rest_framework.decorators import action
+from rest_framework import status
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+import random
 
 from rest_framework.exceptions import ValidationError
 from django.db import IntegrityError
@@ -26,6 +22,17 @@ class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [AllowAny]
+
+    @action(detail=False, methods=['get'], url_path='random')
+    def random_video(self, request):
+        """Returns a random video."""
+        video_ids = list(self.queryset.values_list('id', flat=True))
+        if not video_ids:
+            return Response({"detail": "No videos found."}, status=status.HTTP_404_NOT_FOUND)
+        random_id = random.choice(video_ids)
+        video = self.queryset.get(id=random_id)
+        serializer = self.get_serializer(video)
+        return Response(serializer.data)
 
 
 class UserWatchHistoryViewSet(viewsets.ModelViewSet):
