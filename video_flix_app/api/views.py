@@ -21,7 +21,7 @@ class VideoViewSet(viewsets.ModelViewSet):
     """
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=['get'], url_path='random')
     def random_video(self, request):
@@ -33,6 +33,14 @@ class VideoViewSet(viewsets.ModelViewSet):
         video = self.queryset.get(id=random_id)
         serializer = self.get_serializer(video)
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Only admin users are allowed to delete videos.
+        """
+        if not request.user.is_staff:
+            raise PermissionDenied("Only admins can delete videos.")
+        return super().destroy(request, *args, **kwargs)
 
 
 class UserWatchHistoryViewSet(viewsets.ModelViewSet):
