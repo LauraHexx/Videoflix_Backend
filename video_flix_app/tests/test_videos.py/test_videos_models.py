@@ -57,16 +57,12 @@ def test_post_delete_signal_enqueues_deletion(mocker):
     """post_delete signal triggers video deletion enqueue."""
     mock_queue = mocker.patch(
         "video_flix_app.api.signals.django_rq.get_queue").return_value
-
     video = Video.objects.create(
         title="X",
         video_file="file.mp4",
         thumbnail="thumb.jpg",
         hls_playlist="hls/master.m3u8"
     )
-
-    mock_queue.reset_mock()  # löscht Call History vom post_save-Signal
-
+    mock_queue.reset_mock()
     video.delete()
-
     mock_queue.enqueue.assert_called_once()
