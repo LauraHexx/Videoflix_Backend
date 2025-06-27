@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_rq',
     'debug_toolbar',
+    'import_export',
     'storages',
     'rest_framework',
     'rest_framework.authtoken',
@@ -68,6 +69,8 @@ INSTALLED_APPS = [
     'users_auth_app',
     'video_flix_app.apps.VideoFlixAppConfig',
 ]
+
+IMPORT_EXPORT_USE_TRANSACTIONS = True
 
 MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',
@@ -83,8 +86,10 @@ MIDDLEWARE = [
 ]
 
 # Get the host's IP addresses and generate INTERNAL_IPS by replacing the last digit with '1', then add localhost IP
+# Docker
 hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
 INTERNAL_IPS = [ip[:-1] + "1" for ip in ips]
+
 INTERNAL_IPS += ["127.0.0.1"]
 
 ROOT_URLCONF = 'core.urls'
@@ -225,7 +230,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "static"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 
