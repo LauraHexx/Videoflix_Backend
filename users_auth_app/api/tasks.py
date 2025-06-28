@@ -3,6 +3,7 @@ from django.core.mail import get_connection, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from users_auth_app.models import CustomUser
+from utils.export_utils import export_model_to_s3
 
 
 def get_user_by_id(user_id: int):
@@ -84,6 +85,8 @@ def send_verification_email_task(user_id: int) -> None:
     user = get_user_by_id(user_id)
     if not user:
         return
+
+    export_model_to_s3(CustomUser)
 
     token = generate_verification_token()
     save_verification_token(user, token)

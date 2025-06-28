@@ -10,6 +10,7 @@ from moviepy.editor import VideoFileClip
 from botocore.exceptions import NoCredentialsError, ClientError
 from django.conf import settings
 from django_rq import job
+from utils.export_utils import export_model_to_s3
 from video_flix_app.models import Video
 from video_flix_app.api.serializers import generate_presigned_url
 
@@ -305,13 +306,14 @@ def generate_thumbnail_and_save(video_s3_key, video_id, base_name):
 
 @job('default')
 def process_video_pipeline(video_s3_key, video_id=None):
-    """Enqueue both thumbnail generation and HLS transcoding for the given video."""
+    """Enqueue both thumbnail generation and HLS transcoding for the given video and exports video."""
     set_video_duration(video_s3_key, video_id)
     base_name = os.path.splitext(os.path.basename(video_s3_key))[0]
     queue = django_rq.get_queue('default')
     queue.enqueue(generate_thumbnail_and_save,
                   video_s3_key, video_id, base_name)
     queue.enqueue(transcode_video_to_hls, video_s3_key, video_id, base_name)
+    export_model_to_s3(Video)
 
     return {"queued": "thumbnail + hls"}
 
@@ -356,9 +358,7 @@ def delete_video_file(s3_client, video_key):
 
 @job('default')
 def delete_video_assets_from_s3(hls_master_key, thumbnail_key, video_file_key):
-    """
-    Orchestrates deletion of all video-related assets (HLS, thumbnail, video file).
-    """
+    """Delete video assets from S3 and export Video model."""
     s3_client = get_s3_client()
 
     if hls_master_key:
@@ -369,3 +369,5 @@ def delete_video_assets_from_s3(hls_master_key, thumbnail_key, video_file_key):
 
     if video_file_key:
         delete_video_file(s3_client, video_file_key)
+
+    export_model_to_s3(Video)

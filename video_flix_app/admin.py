@@ -1,31 +1,27 @@
 from django.contrib import admin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
+
 from .models import UserWatchHistory, Video
 
 
-class VideoAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "title",
-        "description",
-        "duration",
-        "video_file",
-        "thumbnail",
-        "hls_playlist",
-        "created_at",
-        "updated_at",
-        "genre",
-    ]
+class VideoResource(resources.ModelResource):
+
+    class Meta:
+        model = Video
 
 
-class UserWatchHistoryAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "user",
-        "video",
-        "progress",
-        "updated_at",
-    ]
+@admin.register(Video)
+class VideoAdmin(ImportExportModelAdmin):
+    resource_classes = [Video]
 
 
-admin.site.register(Video, VideoAdmin)
-admin.site.register(UserWatchHistory, UserWatchHistoryAdmin)
+class UserWatchHistoryResource(resources.ModelResource):
+
+    class Meta:
+        model = UserWatchHistory
+
+
+@admin.register(UserWatchHistory)
+class UserWatchHistoryAdmin(ImportExportModelAdmin):
+    resource_classes = [UserWatchHistory]

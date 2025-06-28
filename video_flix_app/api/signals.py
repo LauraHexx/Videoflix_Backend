@@ -1,8 +1,9 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from video_flix_app.models import Video
-from video_flix_app.api.tasks import process_video_pipeline, delete_video_assets_from_s3
 import django_rq
+from video_flix_app.models import Video, UserWatchHistory
+from video_flix_app.api.tasks import process_video_pipeline, delete_video_assets_from_s3
+from utils.export_utils import export_model_to_s3
 
 
 @receiver(post_save, sender=Video)
@@ -28,3 +29,15 @@ def enqueue_video_deletion(sender, instance, **kwargs):
     queue = django_rq.get_queue('default')
     queue.enqueue(delete_video_assets_from_s3, hls_key,
                   thumbnail_key, video_file_key)
+
+
+@receiver(post_save, sender=UserWatchHistory)
+def export_userwatchhistory_on_save(sender, instance, **kwargs):
+    """Export UserWatchHistory data after create or update."""
+    export_model_to_s3(UserWatchHistory)
+
+
+@receiver(post_delete, sender=UserWatchHistory)
+def export_userwatchhistory_on_delete(sender, instance, **kwargs):
+    """Export UserWatchHistory data after deletion."""
+    export_model_to_s3(UserWatchHistory)
