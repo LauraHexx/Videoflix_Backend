@@ -375,6 +375,8 @@ def delete_video_assets_from_s3(hls_master_key, thumbnail_key, video_file_key):
 
     export_model_to_s3(Video)
 
+# USERWATCHHISTORY#################################################################
+
 
 def export_userwatchhistory_task():
     """Export all UserWatchHistory records to S3 (scheduled task)."""
