@@ -6,8 +6,6 @@ from django.core.files.base import ContentFile
 from import_export.resources import modelresource_factory
 from django.core.files.storage import default_storage
 
-logger = logging.getLogger(__name__)
-
 
 def generate_random_id(length=8) -> str:
     """Generate a random alphanumeric ID of given length."""
@@ -16,14 +14,14 @@ def generate_random_id(length=8) -> str:
 
 
 def get_export_filepath(model) -> str:
-    """Generate timestamped file path with random ID for model export."""
+    """Generate timestamped file path with random ID for model export (JSON)."""
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     random_id = generate_random_id()
-    return f"exports/{model.__name__.lower()}_{timestamp}_{random_id}.csv"
+    return f"exports/{model.__name__.lower()}_{timestamp}_{random_id}.json"
 
 
 def export_model_data(model):
-    """Export model data as CSV dataset."""
+    """Export model data as JSON dataset."""
     resource_cls = modelresource_factory(model=model)
     return resource_cls().export()
 
@@ -36,13 +34,13 @@ def save_export_to_storage(file_path: str, content: bytes) -> str:
 
 
 def export_model_to_s3(model) -> str:
-    """Export all records of model as CSV to S3 with logging."""
+    """Export all records of model as JSON to S3 with logging."""
     try:
         dataset = export_model_data(model)
         file_path = get_export_filepath(model)
-        url = save_export_to_storage(file_path, dataset.csv.encode("utf-8"))
-        logger.info(f"Export successful for {model.__name__}: {file_path}")
+        url = save_export_to_storage(file_path, dataset.json.encode("utf-8"))
+        print(f"EXPORT SUCCESS for {model.__name__}: {file_path}")
         return url
     except Exception as e:
-        logger.error(f"Export failed for {model.__name__}: {e}")
+        print(f"EXPORT FAILED for {model.__name__}: {e}")
         raise

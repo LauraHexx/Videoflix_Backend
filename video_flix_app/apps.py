@@ -7,3 +7,5 @@ class VideoFlixAppConfig(AppConfig):
 
     def ready(self):
         import video_flix_app.api.signals
+        from video_flix_app.api.scheduler import register_watchhistory_export_job
+        register_watchhistory_export_job()

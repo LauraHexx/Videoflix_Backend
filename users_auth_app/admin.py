@@ -7,7 +7,6 @@ from .models import CustomUser
 
 
 class CustomUserResource(resources.ModelResource):
-
     class Meta:
         model = CustomUser
 

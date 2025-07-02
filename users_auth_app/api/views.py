@@ -27,7 +27,7 @@ class RegistrationView(APIView):
 
         if not email:
             return self._email_required_response()
-        if not password and not repeated_password:
+        if not password or not repeated_password:
             return self._email_only_response(email)
         return self._register_user(email, request)
 

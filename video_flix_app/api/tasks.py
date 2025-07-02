@@ -4,14 +4,13 @@ import tempfile
 import django_rq
 import boto3
 import tempfile
-import uuid
 from moviepy.editor import VideoFileClip
 
 from botocore.exceptions import NoCredentialsError, ClientError
 from django.conf import settings
 from django_rq import job
 from utils.export_utils import export_model_to_s3
-from video_flix_app.models import Video
+from video_flix_app.models import Video, UserWatchHistory
 from video_flix_app.api.serializers import generate_presigned_url
 
 
@@ -77,6 +76,9 @@ def cleanup_files(paths):
             os.unlink(path)
 
 
+# DURATION VIDEO#################################################################
+
+
 def get_video_duration(path):
     """Return video duration in seconds."""
     clip = VideoFileClip(path)
@@ -104,45 +106,46 @@ def set_video_duration(video_s3_key, video_id=None):
         cleanup_files([temp_path])
 
 
+# NEW VIDEO#################################################################
+
 @job('default')
 def generate_thumbnail(video_s3_key, base_name):
     """Generate thumbnail from video stored in S3/MinIO."""
-
-    # Create temporary files
-    with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_video:
-        temp_video_path = temp_video.name
-
-    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_thumb:
-        temp_thumb_path = temp_thumb.name
-
+    temp_video_path = get_temp_file('.mp4')
+    temp_thumb_path = get_temp_file('.jpg')
     try:
-        # Download video from S3/MinIO
-        if not download_from_s3(video_s3_key, temp_video_path):
-            raise Exception(
-                f"Failed to download video from S3: {video_s3_key}")
-
-        # Generate thumbnail
-        subprocess.run([
-            'ffmpeg', '-i', temp_video_path,
-            '-ss', '00:00:01',
-            '-vframes', '1',
-            '-y',  # Overwrite output file
-            temp_thumb_path
-        ], check=True)
-
-        # Upload thumbnail to S3/MinIO
-        thumb_s3_key = f"thumbnails/{base_name}.jpg"
-        if not upload_to_s3(temp_thumb_path, thumb_s3_key):
-            raise Exception(
-                f"Failed to upload thumbnail to S3: {thumb_s3_key}")
-
+        download_video_for_thumbnail(video_s3_key, temp_video_path)
+        create_thumbnail_with_ffmpeg(temp_video_path, temp_thumb_path)
+        thumb_s3_key = upload_thumbnail_and_return_key(
+            temp_thumb_path, base_name)
         return thumb_s3_key
-
     finally:
-        # Clean up temporary files
-        for temp_file in [temp_video_path, temp_thumb_path]:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        cleanup_files([temp_video_path, temp_thumb_path])
+
+
+def download_video_for_thumbnail(video_s3_key, temp_video_path):
+    """Download video from S3 for thumbnail generation."""
+    if not download_from_s3(video_s3_key, temp_video_path):
+        raise Exception(f"Failed to download video from S3: {video_s3_key}")
+
+
+def create_thumbnail_with_ffmpeg(temp_video_path, temp_thumb_path):
+    """Generate thumbnail using ffmpeg."""
+    subprocess.run([
+        'ffmpeg', '-i', temp_video_path,
+        '-ss', '00:00:01',
+        '-vframes', '1',
+        '-y',
+        temp_thumb_path
+    ], check=True)
+
+
+def upload_thumbnail_and_return_key(temp_thumb_path, base_name):
+    """Upload thumbnail to S3 and return its key."""
+    thumb_s3_key = f"thumbnails/{base_name}.jpg"
+    if not upload_to_s3(temp_thumb_path, thumb_s3_key):
+        raise Exception(f"Failed to upload thumbnail to S3: {thumb_s3_key}")
+    return thumb_s3_key
 
 
 def get_output_path(output_dir, base_name, height):
@@ -317,7 +320,7 @@ def process_video_pipeline(video_s3_key, video_id=None):
 
     return {"queued": "thumbnail + hls"}
 
-# DELETE#################################################################
+# DELETE VIDEO#################################################################
 
 
 def extract_hls_prefix(hls_master_key):
@@ -371,3 +374,9 @@ def delete_video_assets_from_s3(hls_master_key, thumbnail_key, video_file_key):
         delete_video_file(s3_client, video_file_key)
 
     export_model_to_s3(Video)
+
+
+def export_userwatchhistory_task():
+    """Export all UserWatchHistory records to S3 (scheduled task)."""
+    print("ExportUserWatchHistoryTask RUNNING")
+    export_model_to_s3(UserWatchHistory)

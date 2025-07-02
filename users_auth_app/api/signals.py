@@ -24,10 +24,9 @@ def send_email_on_user_create(sender, instance, created, **kwargs):
 
 
 @receiver(post_save, sender=CustomUser)
-def export_customuser_on_update(sender, instance, created, **kwargs):
+def export_customuser_on_save(sender, instance, created, **kwargs):
     """Export CustomUser data after create or update."""
-    if not created:
-        export_model_to_s3(CustomUser)
+    export_model_to_s3(CustomUser)
 
 
 @receiver(post_delete, sender=CustomUser)
