@@ -1,7 +1,9 @@
 from django.db.models.signals import post_save, post_delete
+from django.core.cache import cache
+from datetime import datetime, timezone
 from django.dispatch import receiver
 import django_rq
-from video_flix_app.models import Video
+from video_flix_app.models import Video, UserWatchHistory
 from video_flix_app.api.tasks import process_video_pipeline, delete_video_assets_from_s3
 from utils.export_utils import export_model_to_s3
 
@@ -35,3 +37,20 @@ def export_customuser_on_save(sender, instance, created, **kwargs):
     """Export Video data after update."""
     if not created:
         export_model_to_s3(Video)
+
+
+EXPORT_CACHE_KEY = "userwatchhistory_last_export"
+
+
+@receiver(post_save, sender=UserWatchHistory)
+def export_userwatchhistory_if_needed(sender, instance, **kwargs):
+    """
+    Export all UserWatchHistory records to S3 at most once per hour.
+    This signal handler checks the timestamp of the last export (stored in cache).
+    If the last export was more than one hour ago, it triggers a new export and updates the timestamp.
+    """
+    last_export = cache.get(EXPORT_CACHE_KEY)
+    now = datetime.now(timezone.utc)
+    if not last_export or (now - last_export).total_seconds() > 3600:
+        export_model_to_s3(UserWatchHistory)
+        cache.set(EXPORT_CACHE_KEY, now, timeout=None)
