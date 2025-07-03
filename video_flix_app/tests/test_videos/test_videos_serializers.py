@@ -7,8 +7,7 @@ from unittest.mock import patch
 @pytest.mark.django_db
 def test_video_serializer_fields(mocker):
     """VideoSerializer serializes expected fields."""
-    mocker.patch("django_rq.get_queue")  # Verhindert Redis-Zugriff
-
+    mocker.patch("django_rq.get_queue")
     video = Video.objects.create(title="Test", video_file="file.mp4")
     data = VideoSerializer(video).data
 

@@ -1,13 +1,9 @@
 import pytest
 from video_flix_app.api.tasks import (
-    process_video_pipeline,
     generate_thumbnail_and_save,
-    transcode_video_to_hls,
     delete_video_assets_from_s3,
 )
 from video_flix_app.models import Video
-from unittest.mock import patch
-from io import StringIO, BytesIO
 
 
 @pytest.mark.django_db
@@ -19,30 +15,6 @@ def test_generate_thumbnail_and_save_updates_db(mocker):
     generate_thumbnail_and_save(video.video_file.name, video.id, "base_name")
     video.refresh_from_db()
     assert video.thumbnail == "thumb_key"
-
-
-# @patch("subprocess.run")
-# def test_transcode_video_to_hls_runs_ffmpeg(mock_subprocess, mocker, tmp_path):
-#    """transcode_video_to_hls runs without error."""
-#    mocker.patch("video_flix_app.api.tasks.download_from_s3",
-#                 return_value=True)
-#    mocker.patch("video_flix_app.api.tasks.upload_hls_to_s3")
-#    mocker.patch("video_flix_app.api.tasks.update_video_hls_field")
-#
-#    def open_mock(file, mode='r', *args, **kwargs):
-#        # Für .json-Dateien IMMER gültiges JSON liefern
-#        if file.endswith('.json'):
-#            if 'b' in mode:
-#                return BytesIO(b'{}')
-#            return StringIO('{}')
-#        if 'b' in mode:
-#            return BytesIO()
-#        return StringIO()
-#    mocker.patch("builtins.open", open_mock)
-#
-#    from video_flix_app.api.tasks import transcode_video_to_hls
-#    result = transcode_video_to_hls("input.mp4", str(tmp_path), "base_name")
-#    assert result.endswith(".m3u8")
 
 
 @pytest.mark.django_db
