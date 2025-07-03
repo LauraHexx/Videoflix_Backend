@@ -54,17 +54,6 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Returns only the watch history entries of the current user,
-        optionally filtered by video ID, sorted by last update (newest first).
-        """
-        queryset = self.queryset.filter(user=self.request.user)
-        video_id = self.request.query_params.get("video")
-        if video_id:
-            queryset = queryset.filter(video_id=video_id)
-        return queryset.order_by('-updated_at')
-
-    def get_queryset(self):
-        """
         Return queryset filtered by current user unless staff.
         Optionally filter by video ID and order by last update descending.
         """

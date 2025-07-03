@@ -39,7 +39,7 @@ def mock_django_rq_get_queue(mocker):
 @pytest.fixture(autouse=True)
 def mock_boto3_client():
     """Mock boto3 client to prevent real S3 calls."""
-    with patch("video_flix_app.api.videos.get_s3_client") as mock_get_s3_client:
+    with patch("video_flix_app.api.serializers.get_s3_client") as mock_get_s3_client:
         mock_client = MagicMock()
         mock_client.download_file.return_value = True
         mock_client.upload_file.return_value = True

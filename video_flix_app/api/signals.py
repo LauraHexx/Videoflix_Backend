@@ -33,7 +33,7 @@ def enqueue_video_deletion(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Video)
-def export_customuser_on_save(sender, instance, created, **kwargs):
+def export_video_on_save(sender, instance, created, **kwargs):
     """Export Video data after update."""
     if not created:
         export_model_to_s3(Video)
@@ -43,7 +43,7 @@ EXPORT_CACHE_KEY = "userwatchhistory_last_export"
 
 
 @receiver(post_save, sender=UserWatchHistory)
-def export_userwatchhistory_if_needed(sender, instance, **kwargs):
+def export_userwatchhistory_hourly(sender, instance, **kwargs):
     """
     Export all UserWatchHistory records to S3 at most once per hour.
     This signal handler checks the timestamp of the last export (stored in cache).

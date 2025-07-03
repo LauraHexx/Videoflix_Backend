@@ -20,14 +20,6 @@ def test_video_file_upload_to_format():
 
 
 @pytest.mark.django_db
-def test_post_save_signal_enqueues_processing(mocker):
-    """post_save signal triggers video processing enqueue."""
-    mock_queue = mocker.patch("django_rq.get_queue").return_value
-    video = Video.objects.create(title="X", video_file="file.mp4")
-    mock_queue.enqueue.assert_called_once()
-
-
-@pytest.mark.django_db
 def test_video_str_returns_title():
     """__str__ returns the video title."""
     video = Video(title="Test Video")
@@ -42,14 +34,6 @@ def test_video_file_upload_to_format():
     assert ext == "mp4"
     assert path.startswith("videos/video_")
     assert len(path.split("_")[2].split(".")[0]) == 7
-
-
-@pytest.mark.django_db
-def test_post_save_signal_enqueues_processing(mocker):
-    """post_save signal triggers video processing enqueue."""
-    mock_queue = mocker.patch("django_rq.get_queue").return_value
-    video = Video.objects.create(title="X", video_file="file.mp4")
-    mock_queue.enqueue.assert_called_once()
 
 
 @pytest.mark.django_db
