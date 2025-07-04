@@ -69,36 +69,36 @@ def generate_presigned_url(s3_key, expiration=3600):
 class VideoSerializer(serializers.ModelSerializer):
     thumbnail_url = serializers.SerializerMethodField()
     hls_playlist_url = serializers.SerializerMethodField()
+    watch_progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Video
         fields = [
             "id", "title", "description", "duration", "video_file",
             "genre", "thumbnail", "thumbnail_url", "hls_playlist", "hls_playlist_url",
+            "watch_progress",
             "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "created_at", "duration",
-            "thumbnail", "hls_playlist", "thumbnail_url", "hls_playlist_url"
+            "thumbnail", "hls_playlist", "thumbnail_url", "hls_playlist_url", "watch_progress"
         ]
 
     def get_thumbnail_url(self, obj):
-        """
-        Return a presigned URL for the video's thumbnail image.
-        If no thumbnail is set, return None.
-        """
         if obj.thumbnail:
             return generate_presigned_url(obj.thumbnail)
         return None
 
     def get_hls_playlist_url(self, obj):
-        """
-        Return a presigned URL for the HLS master playlist of the video.
-        If no playlist is set, return None.
-        """
         if obj.hls_playlist:
             return generate_presigned_url(obj.hls_playlist)
         return None
+
+    def get_watch_progress(self, obj):
+        user_watch_history = getattr(obj, 'user_watch_history', [])
+        if user_watch_history:
+            return user_watch_history[0].progress
+        return 0
 
 
 class UserWatchHistorySerializer(serializers.ModelSerializer):
@@ -106,9 +106,14 @@ class UserWatchHistorySerializer(serializers.ModelSerializer):
     Serializer for user-specific video watch history.
     Handles creation, update, and display of progress for each user and video.
     """
+    video = VideoSerializer(read_only=True)
+    video_id = serializers.PrimaryKeyRelatedField(
+        queryset=Video.objects.all(), source='video', write_only=True
+    )
+
     class Meta:
         model = UserWatchHistory
-        fields = ['id', 'user', 'video', 'progress', 'updated_at']
+        fields = ['id', 'user', 'video', 'video_id', 'progress', 'updated_at']
         read_only_fields = ['id', 'user']
 
     def validate(self, data):

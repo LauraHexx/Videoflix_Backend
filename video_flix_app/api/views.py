@@ -1,7 +1,8 @@
 from rest_framework.decorators import action
+from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework import viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework import status
@@ -22,6 +23,18 @@ class VideoViewSet(viewsets.ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            return Video.objects.prefetch_related(
+                Prefetch(
+                    'userwatchhistory_set',
+                    queryset=UserWatchHistory.objects.filter(user=user),
+                    to_attr='user_watch_history'
+                )
+            )
+        return super().get_queryset()
 
     @action(detail=False, methods=['get'], url_path='random')
     def random_video(self, request):
@@ -48,7 +61,7 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
     ViewSet for managing user-specific video watch history.
     """
 
-    queryset = UserWatchHistory.objects.all()
+    queryset = UserWatchHistory.objects.select_related('video').all()
     serializer_class = UserWatchHistorySerializer
     permission_classes = [IsAuthenticated]
 
