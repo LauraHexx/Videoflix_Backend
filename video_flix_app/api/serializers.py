@@ -101,14 +101,46 @@ class VideoSerializer(serializers.ModelSerializer):
         return 0
 
 
+class WatchlistVideoSerializer(serializers.ModelSerializer):
+    """
+    Serializer for minimal video info (used in watch history).
+    Includes only ID, title, description, duration, and streaming/thumbnail URLs.
+    """
+    thumbnail_url = serializers.SerializerMethodField()
+    hls_playlist_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Video
+        fields = [
+            "id",
+            "title",
+            "description",
+            "duration",
+            "thumbnail_url",
+            "hls_playlist_url"
+        ]
+
+    def get_thumbnail_url(self, obj):
+        if obj.thumbnail:
+            return generate_presigned_url(obj.thumbnail)
+        return None
+
+    def get_hls_playlist_url(self, obj):
+        if obj.hls_playlist:
+            return generate_presigned_url(obj.hls_playlist)
+        return None
+
+
 class UserWatchHistorySerializer(serializers.ModelSerializer):
     """
     Serializer for user-specific video watch history.
-    Handles creation, update, and display of progress for each user and video.
+    Shows progress and minimal video info.
     """
-    video = VideoSerializer(read_only=True)
+    video = WatchlistVideoSerializer(read_only=True)
     video_id = serializers.PrimaryKeyRelatedField(
-        queryset=Video.objects.all(), source='video', write_only=True
+        queryset=Video.objects.all(),
+        source='video',
+        write_only=True
     )
 
     class Meta:
