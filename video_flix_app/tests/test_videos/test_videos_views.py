@@ -53,7 +53,7 @@ def test_create_video_success(auth_client):
     """Authenticated user can create a video."""
     video_file = SimpleUploadedFile(
         "vid.mp4", b"content", content_type="video/mp4")
-    data = {"title": "New Video", "video_file": video_file}
+    data = {"title": "New Video", "video_file": video_file, "genre": "Action"}
     response = auth_client.post(VIDEO_URL, data, format="multipart")
     assert response.status_code == status.HTTP_201_CREATED
     assert Video.objects.filter(title="New Video").exists()

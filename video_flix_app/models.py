@@ -27,7 +27,7 @@ class Video(models.Model):
         max_length=500, null=True, blank=True)  # S3 key for HLS master playlist
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    genre = models.CharField(max_length=255, null=True, blank=True)
+    genre = models.CharField(max_length=255, null=False, blank=False)
 
     def __str__(self):
         return self.title

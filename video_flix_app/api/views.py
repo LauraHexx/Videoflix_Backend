@@ -2,6 +2,7 @@ from rest_framework.decorators import action
 from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework import viewsets
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -24,6 +25,17 @@ class VideoViewSet(viewsets.ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [IsAuthenticated]
 
+    @action(detail=False, methods=['get'], url_path='random')
+    def random_video(self, request):
+        """Returns a random video."""
+        video_ids = list(self.queryset.values_list('id', flat=True))
+        if not video_ids:
+            return Response({"detail": "No videos found."}, status=status.HTTP_404_NOT_FOUND)
+        random_id = random.choice(video_ids)
+        video = self.queryset.get(id=random_id)
+        serializer = self.get_serializer(video)
+        return Response(serializer.data)
+
     def get_queryset(self):
         user = self.request.user
         if user.is_authenticated:
@@ -36,17 +48,6 @@ class VideoViewSet(viewsets.ModelViewSet):
             )
         return super().get_queryset()
 
-    @action(detail=False, methods=['get'], url_path='random')
-    def random_video(self, request):
-        """Returns a random video."""
-        video_ids = list(self.queryset.values_list('id', flat=True))
-        if not video_ids:
-            return Response({"detail": "No videos found."}, status=status.HTTP_404_NOT_FOUND)
-        random_id = random.choice(video_ids)
-        video = self.queryset.get(id=random_id)
-        serializer = self.get_serializer(video)
-        return Response(serializer.data)
-
     def destroy(self, request, *args, **kwargs):
         """
         Only admin users are allowed to delete videos.
@@ -56,12 +57,29 @@ class VideoViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+class UniqueGenresAPIView(APIView):
+    """
+    API endpoint that returns a list of unique genres from Video model.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        genres_qs = Video.objects \
+            .exclude(genre__isnull=True) \
+            .exclude(genre__exact='') \
+            .order_by('genre') \
+            .values_list('genre', flat=True) \
+            .distinct()
+        genres = list(genres_qs)
+        return Response({'genres': genres})
+
+
 class UserWatchHistoryViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing user-specific video watch history.
     """
 
-    queryset = UserWatchHistory.objects.select_related('video').all()
+    queryset = UserWatchHistory.objects.all()
     serializer_class = UserWatchHistorySerializer
     permission_classes = [IsAuthenticated]
 
