@@ -99,14 +99,20 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Sets the current user automatically when creating a new entry.
-        Raises a validation error if an entry for this user and video already exists.
+        Creates or updates watch history entry for the current user and video.
+        If an entry already exists, it updates the progress instead of failing.
         """
-        try:
-            serializer.save(user=self.request.user)
-        except IntegrityError:
-            raise ValidationError(
-                "You already have a watch history entry for this video.")
+        user = self.request.user
+        video = serializer.validated_data["video"]
+        progress = serializer.validated_data.get("progress", 0)
+
+        instance, created = UserWatchHistory.objects.update_or_create(
+            user=user,
+            video=video,
+            defaults={"progress": progress}
+        )
+        # overwrite serializer.instance so that the response returns the right object
+        serializer.instance = instance
 
     def destroy(self, request, *args, **kwargs):
         """
