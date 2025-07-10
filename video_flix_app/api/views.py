@@ -111,7 +111,6 @@ class UserWatchHistoryViewSet(viewsets.ModelViewSet):
             video=video,
             defaults={"progress": progress}
         )
-        # overwrite serializer.instance so that the response returns the right object
         serializer.instance = instance
 
     def destroy(self, request, *args, **kwargs):
