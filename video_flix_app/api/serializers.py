@@ -59,7 +59,7 @@ def build_presigned_url(s3_client, s3_key, content_type, expiration):
         return None
 
 
-def generate_presigned_url(s3_key, expiration=3600):
+def generate_presigned_url(s3_key, expiration=31536000):
     """Generate a presigned URL for S3 object."""
     s3_client = get_s3_client()
     content_type = get_content_type(s3_key)
