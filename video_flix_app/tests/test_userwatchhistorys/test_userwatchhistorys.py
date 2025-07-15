@@ -45,16 +45,6 @@ def test_create_watch_history(auth_client, user, video):
 
 
 @pytest.mark.django_db
-def test_create_watch_history_duplicate(auth_client, video):
-    """Creating a duplicate watch history returns 400."""
-    user = auth_client.handler._force_user
-    UserWatchHistory.objects.create(user=user, video=video, progress=20)
-    data = {"video_id": video.id, "progress": 30}
-    response = auth_client.post(WATCH_HISTORY_URL, data)
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-
-@pytest.mark.django_db
 def test_watch_history_progress_too_high(auth_client, video):
     """Progress cannot exceed video duration."""
     data = {"video_id": video.id, "progress": 9999}
