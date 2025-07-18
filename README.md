@@ -1,0 +1,67 @@
+# Videoflix Backend
+
+The backend for the Videoflix platform, developed with Django and Django REST Framework. It provides APIs for user management, video handling, and authentication.
+
+---
+
+## 🚀 Features
+
+- **User Management**: Registration, login, and token-based authentication.
+- **Video Management**: Upload, retrieve, and categorize videos.
+- **Token-Authentifizierung**: Secure access to protected endpoints.
+- **Categorization**: Group and browse videos by category.
+- **Google Cloud Storage**: Store and retrieve videos and thumbnails.
+
+---
+
+## 🛠️ Technologies Used
+
+- **Python** – Core programming language
+- **Django** – High-level web framework for rapid development
+- **Django REST Framework** – Toolkit for building Web APIs
+- **SQLite** – Lightweight database for development
+- **JWT (JSON Web Tokens)** – Secure user authentication
+- **Google Cloud Storage** – Storage solution for videos and media files
+- **Google Cloud VM** – Hosting backend on a virtual machine
+- **Gunicorn** – WSGI server for running the Django application
+- **Nginx** – Reverse proxy and static file handling
+
+---
+
+## ⚙️ Installation & Setup with Dockers 🐳
+
+### 1. Clone the Repository
+
+git clone https://github.com/LauraHexx/Videoflix_Backend
+cd Videoflix_Backend
+
+### 2. Create the .env file
+
+cp .env.template .env
+
+### 3. Clean Docker Containers
+
+docker-compose down --volumes
+docker-compose build --no-cache
+
+### 4. Start Docker Containers
+
+docker-compose up --build
+
+### 5. Open the App in Browser:
+
+http://localhost:8000/admin
+
+### 6. Login Credentials
+
+admin
+adminpassword
+
+### 7. Upload a Video
+
+Please note: It may take 5–10 seconds for the worker to convert the video
+
+### 8. Start the Frontend
+
+Refer to the README.md file in the frontend repository:
+https://github.com/LauraHexx/Videoflix_Frontend.git
