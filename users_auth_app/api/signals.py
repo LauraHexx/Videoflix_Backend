@@ -1,5 +1,5 @@
 from utils.export_utils import export_model_to_s3
-from users_auth_app.api.tasks import send_verification_email_task
+from users_auth_app.api.tasks import send_verification_email_task, send_register_success_email_task
 import django_rq
 from users_auth_app.models import CustomUser
 from django.dispatch import receiver
@@ -21,6 +21,21 @@ def send_email_on_user_create(sender, instance, created, **kwargs):
     if created or (update_fields and "password" in update_fields):
         queue = django_rq.get_queue("default")
         queue.enqueue(send_verification_email_task, instance.pk)
+
+
+@receiver(post_save, sender=CustomUser)
+def send_email_on_user_verified(sender, instance, created, **kwargs):
+    """
+    Sends success email when user gets verified (but is not a superuser).
+    Triggered only on update, not creation.
+    """
+    if created or instance.is_superuser:
+        return
+
+    update_fields = kwargs.get("update_fields")
+    if update_fields and "is_verified" in update_fields and instance.is_verified:
+        queue = django_rq.get_queue("default")
+        queue.enqueue(send_register_success_email_task, instance.pk)
 
 
 @receiver(post_save, sender=CustomUser)

@@ -30,7 +30,7 @@ def build_verification_link(token: str) -> str:
     return f"{backend_url}/api/registration/verify/{token}/"
 
 
-def render_email_html(user, verification_link: str) -> str:
+def render_verification_email_html(user, verification_link: str) -> str:
     """Render the HTML content for the verification email."""
     return render_to_string("users_auth_app/confirm_email.html", {
         "user": user,
@@ -89,10 +89,33 @@ def send_verification_email_task(user_id: int) -> None:
     save_verification_token(user, token)
 
     verification_link = build_verification_link(token)
-    html_content = render_email_html(user, verification_link)
+    html_content = render_verification_email_html(user, verification_link)
 
     connection = get_email_connection()
     subject = "Confirm your email"
+
+    send_email(user.email, html_content, connection, subject)
+
+
+def render_register_success_email_html(reset_link: str) -> str:
+    """Render HTML content for the register success email."""
+    html = render_to_string("users_auth_app/succes_register.html", {
+        "reset_link": reset_link,
+    })
+    return html
+
+
+def send_register_success_email_task(user_id: int) -> None:
+    """
+    Sends a success email to the user if the account has been verified.
+    """
+    user = get_user_by_id(user_id)
+    if not user or not user.is_verified:
+        return
+
+    html_content = render_register_success_email_html(user)
+    connection = get_email_connection()
+    subject = "Registration successful – welcome to Videoflix!"
 
     send_email(user.email, html_content, connection, subject)
 
