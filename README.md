@@ -13,8 +13,8 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 ## 🛠️ Technologies Used
 
 - **Python** – Core programming language
-- **Django** – High-level web framework for rapid development
-- **Django REST Framework** – Toolkit for building Web APIs
+- **Django 5.2.1** – High-level web framework for rapid development
+- **Django REST Framework 3.16.0** – Toolkit for building Web APIs
 - **SQLite** – Lightweight database for development
 - **JWT (JSON Web Tokens)** – Secure user authentication
 - **Google Cloud Storage** – Storage solution for videos and media files

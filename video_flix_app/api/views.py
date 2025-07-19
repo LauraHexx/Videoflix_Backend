@@ -7,10 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework import status
+from django.core.cache import cache
 import random
 
-from rest_framework.exceptions import ValidationError
-from django.db import IntegrityError
 
 from ..models import Video, UserWatchHistory
 from .serializers import VideoSerializer, UserWatchHistorySerializer
@@ -28,6 +27,8 @@ class VideoViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='random')
     def random_video(self, request):
         """Returns a random video."""
+        cache_key = "random_video_id"
+        random_id = cache.get(cache_key)
         video_ids = list(self.queryset.values_list('id', flat=True))
         if not video_ids:
             return Response({"detail": "No videos found."}, status=status.HTTP_404_NOT_FOUND)
