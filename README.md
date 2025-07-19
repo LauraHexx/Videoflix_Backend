@@ -1,8 +1,6 @@
-# Videoflix Backend
+# Videoflix Backend 🎬
 
 The backend for the Videoflix platform, developed with Django and Django REST Framework. It provides APIs for user management, video handling, and authentication.
-
----
 
 ## 🚀 Features
 
@@ -11,8 +9,6 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 - **Token-Authentifizierung**: Secure access to protected endpoints.
 - **Categorization**: Group and browse videos by category.
 - **Google Cloud Storage**: Store and retrieve videos and thumbnails.
-
----
 
 ## 🛠️ Technologies Used
 
@@ -26,42 +22,59 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 - **Gunicorn** – WSGI server for running the Django application
 - **Nginx** – Reverse proxy and static file handling
 
----
-
 ## ⚙️ Installation & Setup with Dockers 🐳
 
-### 1. Clone the Repository
+1. Clone the repository:
 
-git clone https://github.com/LauraHexx/Videoflix_Backend
-cd Videoflix_Backend
+   ```bash
+    git clone https://github.com/LauraHexx/Videoflix_Backend
+    cd Videoflix_Backend
 
-### 2. Create the .env file
+   ```
 
-cp .env.template .env
+2. Create the .env file:
 
-### 3. Clean Docker Containers
+   ```bash
+    cp .env.template .env
 
-docker-compose down --volumes
-docker-compose build --no-cache
+   ```
 
-### 4. Start Docker Containers
+3. Clean Docker Containers:
 
-docker-compose up --build
+   ```bash
+    docker-compose down --volumes
+    docker-compose build --no-cache
 
-### 5. Open the App in Browser:
+   ```
 
-http://localhost:8000/admin
+4. Start Docker Containers:
 
-### 6. Login Credentials
+   ```bash
+    docker-compose up --build
 
-admin
-adminpassword
+   ```
 
-### 7. Upload a Video
+5. Open the App in Browser:
 
-Please note: It may take 5–10 seconds for the worker to convert the video
+   http://localhost:8000/admin
 
-### 8. Start the Frontend
+6. Login Credentials:
 
-Refer to the README.md file in the frontend repository:
-https://github.com/LauraHexx/Videoflix_Frontend.git
+   admin
+   adminpassword
+
+7. Upload a Video:
+
+   Please note: It may take 5–10 seconds for the worker to convert the video
+
+8. Start the Frontend:
+
+   Refer to the README.md file in the frontend repository:
+   https://github.com/LauraHexx/Videoflix_Frontend.git
+
+## 📋 Testing
+
+```bash
+   coverage run -m pytest
+
+```
