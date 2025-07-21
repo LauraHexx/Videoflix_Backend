@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save, post_delete
 from django.core.cache import cache
 from datetime import datetime, timezone
+import time
 from django.dispatch import receiver
 import django_rq
 from video_flix_app.models import Video, UserWatchHistory
@@ -10,10 +11,16 @@ from utils.export_utils import export_model_to_s3
 
 @receiver(post_save, sender=Video)
 def enqueue_video_processing(sender, instance, created, **kwargs):
+    """
+    Enqueue video processing job after upload.
+    Adds a short delay to avoid cold-start issues with RQ worker.
+    """
     if created and instance.video_file:
-        # Get S3 key from the file field
         s3_key = instance.video_file.name
-        # Enqueue the video processing pipeline
+
+        if not Video.objects.exclude(id=instance.id).exists():
+            time.sleep(3)  # Delay only if it's the first video in DB
+
         queue = django_rq.get_queue('default')
         queue.enqueue(process_video_pipeline, s3_key, instance.id)
 
