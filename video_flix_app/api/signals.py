@@ -18,9 +18,6 @@ def enqueue_video_processing(sender, instance, created, **kwargs):
     if created and instance.video_file:
         s3_key = instance.video_file.name
 
-        if not Video.objects.exclude(id=instance.id).exists():
-            time.sleep(3)  # Delay only if it's the first video in DB
-
         queue = django_rq.get_queue('default')
         queue.enqueue(process_video_pipeline, s3_key, instance.id)
 
