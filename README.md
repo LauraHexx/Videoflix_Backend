@@ -61,7 +61,7 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 
 6. Login Credentials:
 
-   admin
+   admin@example.com,
    adminpassword
 
 7. Upload a Video:
