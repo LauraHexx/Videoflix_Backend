@@ -74,8 +74,8 @@ class RegistrationVerifyView(APIView):
             return self._invalid_token_response("Invalid or expired verification link.")
 
         self._verify_user(user)
-        login_url = f"{settings.FRONTEND_URL}/login"
-        return redirect(login_url)
+        url = f"{settings.FRONTEND_URL}/success-register"
+        return redirect(url)
 
     def _get_user_by_token(self, token):
         """
