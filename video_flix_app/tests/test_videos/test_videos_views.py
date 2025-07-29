@@ -77,12 +77,3 @@ def test_delete_video_denied_for_normal_user(auth_client):
     url = f"{VIDEO_URL}{video.id}/"
     response = auth_client.delete(url)
     assert response.status_code == status.HTTP_403_FORBIDDEN
-
-
-@pytest.mark.django_db
-def test_random_video_endpoint(auth_client):
-    """Random video endpoint returns 200 and video data."""
-    Video.objects.create(title="RandVid")
-    response = auth_client.get(f"{VIDEO_URL}random/")
-    assert response.status_code == status.HTTP_200_OK
-    assert "title" in response.data

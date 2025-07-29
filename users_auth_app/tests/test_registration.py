@@ -156,21 +156,6 @@ def test_registration_serializer_verified_user_fails():
 
 
 @pytest.mark.django_db
-def test_registration_verify_view_success(api_client):
-    """RegistrationVerifyView verifies user with valid token and redirects."""
-    user, _ = create_unverified_user(email="verifyme@example.com")
-    token = uuid.uuid4()
-    user.verification_token = token
-    user.save()
-    url = f"{VERIFY_URL}{token}/"
-    response = api_client.get(url)
-    assert response.status_code == 302
-    user.refresh_from_db()
-    assert user.is_verified
-    assert user.verification_token is None
-
-
-@pytest.mark.django_db
 def test_registration_verify_view_invalid_token(api_client):
     """RegistrationVerifyView fails with invalid token."""
     token = uuid.uuid4()

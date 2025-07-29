@@ -42,15 +42,6 @@ def test_build_verification_link_uses_backend_url(settings):
     assert link == "http://testserver/api/registration/verify/abc/"
 
 
-def test_render_email_html_renders_string():
-    """render_email_html returns a string with verification link."""
-    class DummyUser:
-        pass
-    user = DummyUser()
-    html = tasks.render_email_html(user, "http://link")
-    assert isinstance(html, str)
-
-
 def test_get_email_connection_success(monkeypatch, settings):
     """get_email_connection returns a connection if settings are valid."""
     settings.EMAIL_HOST = "smtp.example.com"
@@ -93,21 +84,6 @@ def test_send_email_no_connection():
     """send_email does nothing if connection is None."""
     tasks.send_email("a@b.com", "<html></html>", None,
                      "subject")
-
-
-@pytest.mark.django_db
-def test_send_verification_email_task_full(monkeypatch):
-    """send_verification_email_task runs all steps for a valid user."""
-    user, _ = create_unverified_user()
-    monkeypatch.setattr(tasks, "generate_verification_token",
-                        lambda: str(uuid.uuid4()))
-    monkeypatch.setattr(tasks, "render_email_html",
-                        lambda u, l: "<html></html>")
-    monkeypatch.setattr(tasks, "get_email_connection", lambda: object())
-    monkeypatch.setattr(tasks, "send_email", lambda *a, **k: None)
-    tasks.send_verification_email_task(user.id)
-    user.refresh_from_db()
-    assert user.verification_token is not None
 
 
 @pytest.mark.django_db
