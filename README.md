@@ -32,12 +32,14 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 
    ```
 
-2. Create the .env file:
+2. Create and Fill the .env File
 
    ```bash
     cp .env.template .env
 
    ```
+
+   [!IMPORTANT] Make sure to replace the placeholder values with actual values specific to your environment where necessary.
 
 3. Clean Docker Containers:
 
