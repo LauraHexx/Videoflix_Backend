@@ -76,9 +76,6 @@ def cleanup_files(paths):
             os.unlink(path)
 
 
-# DURATION VIDEO#################################################################
-
-
 def get_video_duration(path):
     """Return video duration in seconds."""
     clip = VideoFileClip(path)
@@ -105,8 +102,6 @@ def set_video_duration(video_s3_key, video_id=None):
     finally:
         cleanup_files([temp_path])
 
-
-# NEW VIDEO#################################################################
 
 @job('default')
 def generate_thumbnail(video_s3_key, base_name):
@@ -319,8 +314,6 @@ def process_video_pipeline(video_s3_key, video_id=None):
     export_model_to_s3(Video)
 
     return {"queued": "thumbnail + hls"}
-
-# DELETE VIDEO#################################################################
 
 
 def extract_hls_prefix(hls_master_key):

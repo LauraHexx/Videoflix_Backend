@@ -6,8 +6,6 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
-# VerifiedEmailBackend#############################################################
-
 @pytest.mark.django_db
 def test_authenticate_success():
     """Authenticate returns user if email, password and is_verified are correct."""
@@ -49,8 +47,6 @@ def test_authenticate_not_verified():
 
     assert authenticated_user is None
 
-
-# UnsafeTLSBackend#############################################################
 
 @pytest.fixture
 def backend():
