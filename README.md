@@ -38,7 +38,7 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 
    ```
 
-   [!IMPORTANT] Make sure to replace the placeholder values with actual values specific to your environment where necessary.
+   [!IMPORTANT] Make sure to replace the placeholder values in your new `.env` file with actual values specific to your environment, following the structure and keys provided in `.env.template`.
 
 3. Clean Docker Containers:
 
