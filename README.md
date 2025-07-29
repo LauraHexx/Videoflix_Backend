@@ -15,10 +15,9 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 - **Python** – Core programming language
 - **Django 5.2.1** – High-level web framework for rapid development
 - **Django REST Framework 3.16.0** – Toolkit for building Web APIs
-- **SQLite** – Lightweight database for development
-- **JWT (JSON Web Tokens)** – Secure user authentication
-- **Google Cloud Storage** – Storage solution for videos and media files
-- **Google Cloud VM** – Hosting backend on a virtual machine
+- **PostgreSQL** – Database for development
+- **DRF Token Authentication** – Secure user authentication
+- **AWS S3 / MinIO** – Storage solution for videos and media files
 - **Gunicorn** – WSGI server for running the Django application
 - **Nginx** – Reverse proxy and static file handling
 

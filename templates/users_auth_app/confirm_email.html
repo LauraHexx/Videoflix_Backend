@@ -1,0 +1,12 @@
+{% extends "users_auth_app/base_email.html" %} {% block title %}Email
+Verification{% endblock %} {% block content %}
+<p>Dear User,</p>
+<p>
+  Thank you for registering with <span>Videoflix</span>. To complete your
+  registration and verify your email address, please click the link below:
+</p>
+<p>
+  <a href="{{ verification_link }}" class="link">Activate account</a>
+</p>
+<p>If you did not create an account with us, please disregard this email.</p>
+{% endblock %}
