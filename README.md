@@ -76,6 +76,7 @@ The backend for the Videoflix platform, developed with Django and Django REST Fr
 ## 📋 Testing
 
 ```bash
+   docker-compose exec web bash
    coverage run -m pytest
 
 ```
